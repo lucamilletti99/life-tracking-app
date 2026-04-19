@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { HabitCard } from "@/components/habits/HabitCard";
 import { HabitForm } from "@/components/habits/HabitForm";
@@ -10,13 +10,52 @@ import { habitsService } from "@/lib/services/habits";
 import type { Habit } from "@/lib/types";
 
 export default function HabitsPage() {
-  const [habits, setHabits] = useState(() => habitsService.list());
+  const [habits, setHabits] = useState<Habit[]>([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
 
-  function handleCreate(data: Omit<Habit, "id" | "created_at" | "updated_at">) {
-    habitsService.create(data);
-    setHabits(habitsService.list());
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const rows = await habitsService.list();
+        if (!cancelled) setHabits(rows);
+      } catch (error) {
+        if (!cancelled) {
+          setHabits([]);
+          console.error(error);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleCreate(data: Omit<Habit, "id" | "created_at" | "updated_at">) {
+    await habitsService.create(data);
+    const refreshed = await habitsService.list();
+    setHabits(refreshed);
     setOpen(false);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex-1 p-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div key={i} className="h-28 animate-pulse rounded-xl bg-neutral-100" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (

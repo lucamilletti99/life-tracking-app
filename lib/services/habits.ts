@@ -1,47 +1,80 @@
-import type { Habit } from "../types";
-import { mockHabits, mockHabitGoalLinks } from "../mock-data";
+import { supabase } from "@/supabase/client";
 
-let habits = [...mockHabits];
-let links = [...mockHabitGoalLinks];
+import type { Habit } from "../types";
 
 export const habitsService = {
-  list: (): Habit[] => habits.filter((h) => h.is_active),
-  get: (id: string): Habit | undefined => habits.find((h) => h.id === id),
-  create: (data: Omit<Habit, "id" | "created_at" | "updated_at">): Habit => {
-    const habit: Habit = {
-      ...data,
-      id: crypto.randomUUID(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    habits = [...habits, habit];
-    return habit;
+  list: async (): Promise<Habit[]> => {
+    const { data, error } = await supabase
+      .from("habits")
+      .select("*")
+      .eq("is_active", true)
+      .order("created_at");
+    if (error) throw error;
+    return (data ?? []) as Habit[];
   },
-  update: (id: string, data: Partial<Habit>): Habit => {
-    habits = habits.map((h) =>
-      h.id === id ? { ...h, ...data, updated_at: new Date().toISOString() } : h,
-    );
-    return habits.find((h) => h.id === id)!;
+
+  get: async (id: string): Promise<Habit | undefined> => {
+    const { data, error } = await supabase
+      .from("habits")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    return data as Habit | undefined;
   },
-  archive: (id: string): void => {
-    habits = habits.map((h) => (h.id === id ? { ...h, is_active: false } : h));
+
+  create: async (
+    data: Omit<Habit, "id" | "created_at" | "updated_at">,
+  ): Promise<Habit> => {
+    const { data: row, error } = await supabase
+      .from("habits")
+      .insert(data)
+      .select()
+      .single();
+    if (error) throw error;
+    return row as Habit;
   },
-  getLinkedGoalIds: (habitId: string): string[] =>
-    links.filter((l) => l.habit_id === habitId).map((l) => l.goal_id),
-  linkGoal: (habitId: string, goalId: string): void => {
-    if (!links.find((l) => l.habit_id === habitId && l.goal_id === goalId)) {
-      links = [
-        ...links,
-        {
-          id: crypto.randomUUID(),
-          habit_id: habitId,
-          goal_id: goalId,
-          created_at: new Date().toISOString(),
-        },
-      ];
-    }
+
+  update: async (id: string, data: Partial<Habit>): Promise<Habit> => {
+    const { data: row, error } = await supabase
+      .from("habits")
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return row as Habit;
   },
-  unlinkGoal: (habitId: string, goalId: string): void => {
-    links = links.filter((l) => !(l.habit_id === habitId && l.goal_id === goalId));
+
+  archive: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from("habits")
+      .update({ is_active: false })
+      .eq("id", id);
+    if (error) throw error;
+  },
+
+  getLinkedGoalIds: async (habitId: string): Promise<string[]> => {
+    const { data, error } = await supabase
+      .from("habit_goal_links")
+      .select("goal_id")
+      .eq("habit_id", habitId);
+    if (error) throw error;
+    return (data ?? []).map((r: { goal_id: string }) => r.goal_id);
+  },
+
+  linkGoal: async (habitId: string, goalId: string): Promise<void> => {
+    const { error } = await supabase
+      .from("habit_goal_links")
+      .upsert({ habit_id: habitId, goal_id: goalId });
+    if (error) throw error;
+  },
+
+  unlinkGoal: async (habitId: string, goalId: string): Promise<void> => {
+    const { error } = await supabase
+      .from("habit_goal_links")
+      .delete()
+      .match({ habit_id: habitId, goal_id: goalId });
+    if (error) throw error;
   },
 };

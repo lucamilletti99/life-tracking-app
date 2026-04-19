@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ChevronLeft } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -11,28 +12,97 @@ import { calculateGoalProgress } from "@/lib/goal-calculations";
 import { goalsService } from "@/lib/services/goals";
 import { habitsService } from "@/lib/services/habits";
 import { logsService } from "@/lib/services/logs";
+import type { Goal, Habit, LogEntry } from "@/lib/types";
 
 export default function GoalDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const id = params.id;
 
-  const goal = goalsService.get(id);
+  const [goal, setGoal] = useState<Goal | undefined>(undefined);
+  const [linkedHabits, setLinkedHabits] = useState<Habit[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const fetchedGoal = await goalsService.get(id);
+        if (!fetchedGoal) {
+          if (!cancelled) {
+            setGoal(undefined);
+            setLinkedHabits([]);
+            setLogs([]);
+          }
+          return;
+        }
+
+        const [habitIds, allLogs, rangedLogs] = await Promise.all([
+          goalsService.getLinkedHabitIds(id),
+          logsService.list(),
+          logsService.forDateRange(fetchedGoal.start_date, fetchedGoal.end_date),
+        ]);
+
+        const habitRows = (
+          await Promise.all(habitIds.map((hid) => habitsService.get(hid)))
+        ).filter((h): h is Habit => Boolean(h));
+
+        if (!cancelled) {
+          setGoal(fetchedGoal);
+          setLinkedHabits(habitRows);
+          setLogs(
+            [...rangedLogs].sort((a, b) =>
+              b.entry_datetime.localeCompare(a.entry_datetime),
+            ),
+          );
+
+          // keep full logs in memory for progress computation
+          setLogs((prev) => {
+            const merged = [...allLogs].sort((a, b) =>
+              b.entry_datetime.localeCompare(a.entry_datetime),
+            );
+            return merged.length >= prev.length ? merged : prev;
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setGoal(undefined);
+          setLinkedHabits([]);
+          setLogs([]);
+          console.error(error);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const recentLogs = useMemo(() => {
+    if (!goal) return [] as LogEntry[];
+    return logs
+      .filter((l) => l.entry_date >= goal.start_date && l.entry_date <= goal.end_date)
+      .sort((a, b) => b.entry_datetime.localeCompare(a.entry_datetime))
+      .slice(0, 10);
+  }, [goal, logs]);
+
+  if (loading) {
+    return <div className="p-6 text-neutral-400">Loading goal...</div>;
+  }
 
   if (!goal) {
     return <div className="p-6 text-neutral-400">Goal not found.</div>;
   }
 
-  const allLogs = logsService.list();
-  const progress = calculateGoalProgress(goal, allLogs);
-  const linkedHabitIds = goalsService.getLinkedHabitIds(id);
-  const linkedHabits = linkedHabitIds
-    .map((hid) => habitsService.get(hid))
-    .filter(Boolean);
-  const recentLogs = logsService
-    .forDateRange(goal.start_date, goal.end_date)
-    .sort((a, b) => b.entry_datetime.localeCompare(a.entry_datetime))
-    .slice(0, 10);
+  const progress = calculateGoalProgress(goal, logs);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -77,13 +147,11 @@ export default function GoalDetailPage() {
             <div>
               <h2 className="mb-3 text-sm font-semibold text-neutral-700">Linked habits</h2>
               <div className="flex flex-wrap gap-2">
-                {linkedHabits.map((h) =>
-                  h ? (
-                    <Badge key={h.id} variant="secondary">
-                      {h.title}
-                    </Badge>
-                  ) : null,
-                )}
+                {linkedHabits.map((h) => (
+                  <Badge key={h.id} variant="secondary">
+                    {h.title}
+                  </Badge>
+                ))}
               </div>
             </div>
           )}

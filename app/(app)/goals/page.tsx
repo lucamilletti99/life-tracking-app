@@ -1,7 +1,7 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 import { GoalCard } from "@/components/goals/GoalCard";
 import { GoalForm } from "@/components/goals/GoalForm";
@@ -10,22 +10,71 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { calculateGoalProgress } from "@/lib/goal-calculations";
 import { goalsService } from "@/lib/services/goals";
 import { logsService } from "@/lib/services/logs";
-import type { Goal } from "@/lib/types";
+import type { Goal, LogEntry } from "@/lib/types";
 
 export default function GoalsPage() {
   const router = useRouter();
-  const [goals, setGoals] = useState(() => goalsService.list());
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
 
-  const allLogs = logsService.list();
-  const progressList = goals.map((g) => calculateGoalProgress(g, allLogs));
+  useEffect(() => {
+    let cancelled = false;
 
-  function handleCreate(
+    async function load() {
+      setLoading(true);
+      try {
+        const [goalRows, logRows] = await Promise.all([
+          goalsService.list(),
+          logsService.list(),
+        ]);
+        if (!cancelled) {
+          setGoals(goalRows);
+          setLogs(logRows);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setGoals([]);
+          setLogs([]);
+          console.error(error);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const progressList = useMemo(
+    () => goals.map((g) => calculateGoalProgress(g, logs)),
+    [goals, logs],
+  );
+
+  async function handleCreate(
     data: Omit<Goal, "id" | "created_at" | "updated_at" | "current_value_cache">,
   ) {
-    goalsService.create(data);
-    setGoals(goalsService.list());
+    await goalsService.create(data);
+    const refreshed = await goalsService.list();
+    setGoals(refreshed);
     setOpen(false);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex-1 p-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div key={i} className="h-28 animate-pulse rounded-xl bg-neutral-100" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (

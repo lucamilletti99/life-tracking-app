@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
+import { DayView } from "@/components/calendar/DayView";
+import { MonthView } from "@/components/calendar/MonthView";
 import { RightDrawer } from "@/components/calendar/RightDrawer";
 import { WeekView } from "@/components/calendar/WeekView";
 import { TodoForm } from "@/components/todos/TodoForm";
@@ -19,17 +21,18 @@ export default function CalendarPage() {
   const [newTodoSlot, setNewTodoSlot] = useState<{ date: Date; hour: number } | null>(
     null,
   );
-  const [, forceUpdate] = useState(0);
-  const refresh = useCallback(() => forceUpdate((n) => n + 1), []);
+  const [view, setView] = useState<"week" | "day" | "month">("week");
 
   function handleSlotClick(date: Date, hour: number) {
     setNewTodoSlot({ date, hour });
   }
 
-  function handleCreateTodo(data: Omit<Todo, "id" | "created_at" | "updated_at">) {
-    todosService.create(data);
+  async function handleCreateTodo(
+    data: Omit<Todo, "id" | "created_at" | "updated_at">,
+  ) {
+    await todosService.create(data);
     setNewTodoSlot(null);
-    refresh();
+    calendar.refresh();
   }
 
   return (
@@ -49,19 +52,63 @@ export default function CalendarPage() {
             {format(calendar.weekStart, "MMM d")} - {format(calendar.weekEnd, "MMM d, yyyy")}
           </span>
         </div>
-        <Button size="sm" onClick={() => setNewTodoSlot({ date: calendar.currentDate, hour: 9 })}>
-          + New
-        </Button>
+
+        <div className="flex items-center gap-2">
+          <div className="flex overflow-hidden rounded-lg border border-neutral-200">
+            {(["week", "day", "month"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`px-3 py-1.5 text-xs capitalize transition-colors ${
+                  view === v
+                    ? "bg-neutral-900 text-white"
+                    : "text-neutral-500 hover:bg-neutral-50"
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setNewTodoSlot({ date: calendar.currentDate, hour: 9 })}
+          >
+            + New
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <WeekView
-          days={calendar.days}
-          items={calendar.items}
-          onItemClick={(item) => setSelectedItem(item)}
-          onSlotClick={handleSlotClick}
+        {calendar.loading ? (
+          <div className="flex flex-1 items-center justify-center text-sm text-neutral-400">
+            Loading calendar...
+          </div>
+        ) : (
+          <>
+            {view === "week" && (
+              <WeekView
+                days={calendar.days}
+                items={calendar.items}
+                onItemClick={setSelectedItem}
+                onSlotClick={handleSlotClick}
+              />
+            )}
+            {view === "day" && (
+              <DayView
+                date={calendar.currentDate}
+                items={calendar.items}
+                onItemClick={setSelectedItem}
+              />
+            )}
+            {view === "month" && <MonthView />}
+          </>
+        )}
+
+        <RightDrawer
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
+          onRefresh={calendar.refresh}
         />
-        <RightDrawer item={selectedItem} onClose={() => setSelectedItem(null)} onRefresh={refresh} />
       </div>
 
       <Dialog open={!!newTodoSlot} onOpenChange={(open) => !open && setNewTodoSlot(null)}>
