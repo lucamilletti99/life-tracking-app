@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,12 +15,14 @@ import type {
 import { RecurrenceBuilder } from "./RecurrenceBuilder";
 
 interface HabitFormProps {
+  habitId?: string;
   initial?: Partial<Habit>;
   onSubmit: (data: Omit<Habit, "id" | "created_at" | "updated_at">) => void;
+  onAutoSave?: (data: Omit<Habit, "id" | "created_at" | "updated_at">) => void;
   onCancel: () => void;
 }
 
-export function HabitForm({ initial, onSubmit, onCancel }: HabitFormProps) {
+export function HabitForm({ habitId, initial, onSubmit, onAutoSave, onCancel }: HabitFormProps) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [trackingType, setTrackingType] = useState<TrackingType>(
     initial?.tracking_type ?? "numeric",
@@ -35,6 +37,28 @@ export function HabitForm({ initial, onSubmit, onCancel }: HabitFormProps) {
   const [autoCreate, setAutoCreate] = useState(
     initial?.auto_create_calendar_instances ?? true,
   );
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isEditMode = Boolean(habitId);
+
+  useEffect(() => {
+    if (!isEditMode || !onAutoSave) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      onAutoSave({
+        title,
+        tracking_type: trackingType,
+        unit: unit || undefined,
+        recurrence_type: recurrenceType,
+        recurrence_config: recurrenceConfig,
+        auto_create_calendar_instances: autoCreate,
+        is_active: true,
+      });
+    }, 600);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [title, trackingType, unit, recurrenceType, recurrenceConfig, autoCreate]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -110,12 +134,22 @@ export function HabitForm({ initial, onSubmit, onCancel }: HabitFormProps) {
         Show on calendar automatically
       </label>
 
-      <div className="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit">Save habit</Button>
-      </div>
+      {!isEditMode && (
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit">Save habit</Button>
+        </div>
+      )}
+
+      {isEditMode && (
+        <div className="flex justify-end pt-2">
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            Done
+          </Button>
+        </div>
+      )}
     </form>
   );
 }
