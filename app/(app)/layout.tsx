@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Toaster } from "sonner";
 
 import { Sidebar } from "@/components/layout/Sidebar";
 
@@ -7,6 +8,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-neutral-50">
       <Sidebar />
       <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
+      <Toaster position="bottom-right" />
     </div>
   );
 }
