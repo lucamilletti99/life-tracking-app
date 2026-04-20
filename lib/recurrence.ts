@@ -19,6 +19,12 @@ function datesInRange(start: string, end: string): Date[] {
   return result;
 }
 
+function selectEvenly(all: Date[], n: number): string[] {
+  const period = all.length;
+  const indices = Array.from({ length: n }, (_, i) => Math.floor((i * period) / n));
+  return indices.filter((idx) => idx < period).map((idx) => isoDate(all[idx]));
+}
+
 export function getOccurrencesInRange(
   habit: Habit,
   start: string,
@@ -38,16 +44,12 @@ export function getOccurrencesInRange(
 
   if (habit.recurrence_type === "times_per_week") {
     const n = cfg.times_per_period ?? 1;
-    const period = all.length;
-    const indices = Array.from({ length: n }, (_, i) => Math.floor((i * period) / n));
-    return indices.filter((idx) => idx < period).map((idx) => isoDate(all[idx]));
+    return selectEvenly(all, n);
   }
 
   if (habit.recurrence_type === "times_per_month") {
     const n = cfg.times_per_period ?? 1;
-    const period = all.length;
-    const indices = Array.from({ length: n }, (_, i) => Math.floor((i * period) / n));
-    return indices.filter((idx) => idx < period).map((idx) => isoDate(all[idx]));
+    return selectEvenly(all, n);
   }
 
   if (habit.recurrence_type === "day_of_month") {
