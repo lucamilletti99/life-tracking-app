@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,14 +8,18 @@ import { Label } from "@/components/ui/label";
 import type { Goal, GoalType } from "@/lib/types";
 
 interface GoalFormProps {
+  goalId?: string;
   initial?: Partial<Goal>;
   onSubmit: (
+    data: Omit<Goal, "id" | "created_at" | "updated_at" | "current_value_cache">,
+  ) => void;
+  onAutoSave?: (
     data: Omit<Goal, "id" | "created_at" | "updated_at" | "current_value_cache">,
   ) => void;
   onCancel: () => void;
 }
 
-export function GoalForm({ initial, onSubmit, onCancel }: GoalFormProps) {
+export function GoalForm({ goalId, initial, onSubmit, onAutoSave, onCancel }: GoalFormProps) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [goalType, setGoalType] = useState<GoalType>(
     initial?.goal_type ?? "accumulation",
@@ -27,6 +31,29 @@ export function GoalForm({ initial, onSubmit, onCancel }: GoalFormProps) {
   );
   const [startDate, setStartDate] = useState(initial?.start_date ?? "");
   const [endDate, setEndDate] = useState(initial?.end_date ?? "");
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isEditMode = Boolean(goalId);
+
+  useEffect(() => {
+    if (!isEditMode || !onAutoSave) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      onAutoSave({
+        title,
+        goal_type: goalType,
+        unit,
+        target_value: parseFloat(targetValue) || 0,
+        baseline_value: baselineValue ? parseFloat(baselineValue) : undefined,
+        start_date: startDate,
+        end_date: endDate,
+        is_active: true,
+      });
+    }, 600);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [title, goalType, unit, targetValue, baselineValue, startDate, endDate]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -128,12 +155,22 @@ export function GoalForm({ initial, onSubmit, onCancel }: GoalFormProps) {
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit">Save goal</Button>
-      </div>
+      {!isEditMode && (
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit">Save goal</Button>
+        </div>
+      )}
+
+      {isEditMode && (
+        <div className="flex justify-end pt-2">
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            Done
+          </Button>
+        </div>
+      )}
     </form>
   );
 }
