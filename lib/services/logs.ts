@@ -1,3 +1,5 @@
+import { toast } from "sonner";
+
 import { supabase } from "@/supabase/client";
 
 import type { LogEntry } from "../types";
@@ -34,17 +36,31 @@ export const logsService = {
   create: async (
     data: Omit<LogEntry, "id" | "created_at" | "updated_at">,
   ): Promise<LogEntry> => {
-    const { data: row, error } = await supabase
-      .from("log_entries")
-      .insert(data)
-      .select()
-      .single();
-    if (error) throw error;
-    return row as LogEntry;
+    try {
+      const { data: row, error } = await supabase
+        .from("log_entries")
+        .insert(data)
+        .select()
+        .single();
+      if (error) throw error;
+      console.log("[logs] create succeeded", row);
+      return row as LogEntry;
+    } catch (err) {
+      toast.error("Failed to save log");
+      console.error("[logs] create failed", err);
+      throw err;
+    }
   },
 
   delete: async (id: string): Promise<void> => {
-    const { error } = await supabase.from("log_entries").delete().eq("id", id);
-    if (error) throw error;
+    try {
+      const { error } = await supabase.from("log_entries").delete().eq("id", id);
+      if (error) throw error;
+      console.log("[logs] delete succeeded", id);
+    } catch (err) {
+      toast.error("Failed to delete log");
+      console.error("[logs] delete failed", err);
+      throw err;
+    }
   },
 };

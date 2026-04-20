@@ -1,6 +1,8 @@
+import { toast } from "sonner";
+
 import { supabase } from "@/supabase/client";
 
-import type { Habit } from "../types";
+import type { Habit, HabitGoalLink } from "../types";
 
 export const habitsService = {
   list: async (): Promise<Habit[]> => {
@@ -26,32 +28,53 @@ export const habitsService = {
   create: async (
     data: Omit<Habit, "id" | "created_at" | "updated_at">,
   ): Promise<Habit> => {
-    const { data: row, error } = await supabase
-      .from("habits")
-      .insert(data)
-      .select()
-      .single();
-    if (error) throw error;
-    return row as Habit;
+    try {
+      const { data: row, error } = await supabase
+        .from("habits")
+        .insert(data)
+        .select()
+        .single();
+      if (error) throw error;
+      console.log("[habits] create succeeded", row);
+      return row as Habit;
+    } catch (err) {
+      toast.error("Failed to create habit");
+      console.error("[habits] create failed", err);
+      throw err;
+    }
   },
 
   update: async (id: string, data: Partial<Habit>): Promise<Habit> => {
-    const { data: row, error } = await supabase
-      .from("habits")
-      .update({ ...data, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select()
-      .single();
-    if (error) throw error;
-    return row as Habit;
+    try {
+      const { data: row, error } = await supabase
+        .from("habits")
+        .update({ ...data, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      console.log("[habits] update succeeded", row);
+      return row as Habit;
+    } catch (err) {
+      toast.error("Failed to update habit");
+      console.error("[habits] update failed", err);
+      throw err;
+    }
   },
 
   archive: async (id: string): Promise<void> => {
-    const { error } = await supabase
-      .from("habits")
-      .update({ is_active: false })
-      .eq("id", id);
-    if (error) throw error;
+    try {
+      const { error } = await supabase
+        .from("habits")
+        .update({ is_active: false })
+        .eq("id", id);
+      if (error) throw error;
+      console.log("[habits] archive succeeded", id);
+    } catch (err) {
+      toast.error("Failed to archive habit");
+      console.error("[habits] archive failed", err);
+      throw err;
+    }
   },
 
   getLinkedGoalIds: async (habitId: string): Promise<string[]> => {
@@ -61,6 +84,12 @@ export const habitsService = {
       .eq("habit_id", habitId);
     if (error) throw error;
     return (data ?? []).map((r: { goal_id: string }) => r.goal_id);
+  },
+
+  listGoalLinks: async (): Promise<HabitGoalLink[]> => {
+    const { data, error } = await supabase.from("habit_goal_links").select("*");
+    if (error) throw error;
+    return (data ?? []) as HabitGoalLink[];
   },
 
   linkGoal: async (habitId: string, goalId: string): Promise<void> => {

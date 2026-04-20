@@ -1,3 +1,5 @@
+import { toast } from "sonner";
+
 import { supabase } from "@/supabase/client";
 
 import type { Todo } from "../types";
@@ -35,28 +37,49 @@ export const todosService = {
   create: async (
     data: Omit<Todo, "id" | "created_at" | "updated_at">,
   ): Promise<Todo> => {
-    const { data: row, error } = await supabase
-      .from("todos")
-      .insert(data)
-      .select()
-      .single();
-    if (error) throw error;
-    return row as Todo;
+    try {
+      const { data: row, error } = await supabase
+        .from("todos")
+        .insert(data)
+        .select()
+        .single();
+      if (error) throw error;
+      console.log("[todos] create succeeded", row);
+      return row as Todo;
+    } catch (err) {
+      toast.error("Failed to create todo");
+      console.error("[todos] create failed", err);
+      throw err;
+    }
   },
 
   update: async (id: string, data: Partial<Todo>): Promise<Todo> => {
-    const { data: row, error } = await supabase
-      .from("todos")
-      .update({ ...data, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select()
-      .single();
-    if (error) throw error;
-    return row as Todo;
+    try {
+      const { data: row, error } = await supabase
+        .from("todos")
+        .update({ ...data, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      console.log("[todos] update succeeded", row);
+      return row as Todo;
+    } catch (err) {
+      toast.error("Failed to update todo");
+      console.error("[todos] update failed", err);
+      throw err;
+    }
   },
 
   delete: async (id: string): Promise<void> => {
-    const { error } = await supabase.from("todos").delete().eq("id", id);
-    if (error) throw error;
+    try {
+      const { error } = await supabase.from("todos").delete().eq("id", id);
+      if (error) throw error;
+      console.log("[todos] delete succeeded", id);
+    } catch (err) {
+      toast.error("Failed to delete todo");
+      console.error("[todos] delete failed", err);
+      throw err;
+    }
   },
 };

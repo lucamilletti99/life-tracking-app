@@ -1,3 +1,5 @@
+import { toast } from "sonner";
+
 import { supabase } from "@/supabase/client";
 
 import type { Goal } from "../types";
@@ -26,29 +28,50 @@ export const goalsService = {
   create: async (
     data: Omit<Goal, "id" | "created_at" | "updated_at">,
   ): Promise<Goal> => {
-    const { data: row, error } = await supabase
-      .from("goals")
-      .insert(data)
-      .select()
-      .single();
-    if (error) throw error;
-    return row as Goal;
+    try {
+      const { data: row, error } = await supabase
+        .from("goals")
+        .insert(data)
+        .select()
+        .single();
+      if (error) throw error;
+      console.log("[goals] create succeeded", row);
+      return row as Goal;
+    } catch (err) {
+      toast.error("Failed to create goal");
+      console.error("[goals] create failed", err);
+      throw err;
+    }
   },
 
   update: async (id: string, data: Partial<Goal>): Promise<Goal> => {
-    const { data: row, error } = await supabase
-      .from("goals")
-      .update({ ...data, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select()
-      .single();
-    if (error) throw error;
-    return row as Goal;
+    try {
+      const { data: row, error } = await supabase
+        .from("goals")
+        .update({ ...data, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      console.log("[goals] update succeeded", row);
+      return row as Goal;
+    } catch (err) {
+      toast.error("Failed to update goal");
+      console.error("[goals] update failed", err);
+      throw err;
+    }
   },
 
   delete: async (id: string): Promise<void> => {
-    const { error } = await supabase.from("goals").delete().eq("id", id);
-    if (error) throw error;
+    try {
+      const { error } = await supabase.from("goals").delete().eq("id", id);
+      if (error) throw error;
+      console.log("[goals] delete succeeded", id);
+    } catch (err) {
+      toast.error("Failed to delete goal");
+      console.error("[goals] delete failed", err);
+      throw err;
+    }
   },
 
   getLinkedHabitIds: async (goalId: string): Promise<string[]> => {
