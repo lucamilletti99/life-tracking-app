@@ -1,4 +1,5 @@
 import { format, parseISO } from "date-fns";
+import { Pencil } from "lucide-react";
 
 import type { GoalProgress } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +9,7 @@ import { GoalProgressBar } from "./GoalProgressBar";
 interface GoalCardProps {
   progress: GoalProgress;
   onClick: () => void;
+  onEdit: (e: React.MouseEvent) => void;
 }
 
 const typeLabel: Record<string, string> = {
@@ -16,7 +18,7 @@ const typeLabel: Record<string, string> = {
   limit: "Limit",
 };
 
-export function GoalCard({ progress, onClick }: GoalCardProps) {
+export function GoalCard({ progress, onClick, onEdit }: GoalCardProps) {
   const { goal, current_value, percentage, is_on_track } = progress;
 
   return (
@@ -32,9 +34,18 @@ export function GoalCard({ progress, onClick }: GoalCardProps) {
             {format(parseISO(goal.end_date), "MMM d, yyyy")}
           </p>
         </div>
-        <Badge variant={is_on_track ? "default" : "secondary"} className="shrink-0 text-xs">
-          {is_on_track ? "On track" : "Off track"}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+          >
+            <Pencil size={14} />
+          </button>
+          <Badge variant={is_on_track ? "default" : "secondary"} className="shrink-0 text-xs">
+            {is_on_track ? "On track" : "Off track"}
+          </Badge>
+        </div>
       </div>
 
       <div className="mb-2 flex items-baseline justify-between text-sm">
