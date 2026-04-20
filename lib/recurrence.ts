@@ -38,12 +38,16 @@ export function getOccurrencesInRange(
 
   if (habit.recurrence_type === "times_per_week") {
     const n = cfg.times_per_period ?? 1;
-    return all.slice(0, Math.min(n, all.length)).map(isoDate);
+    const period = all.length;
+    const indices = Array.from({ length: n }, (_, i) => Math.floor((i * period) / n));
+    return indices.filter((idx) => idx < period).map((idx) => isoDate(all[idx]));
   }
 
   if (habit.recurrence_type === "times_per_month") {
     const n = cfg.times_per_period ?? 1;
-    return all.slice(0, Math.min(n, all.length)).map(isoDate);
+    const period = all.length;
+    const indices = Array.from({ length: n }, (_, i) => Math.floor((i * period) / n));
+    return indices.filter((idx) => idx < period).map((idx) => isoDate(all[idx]));
   }
 
   if (habit.recurrence_type === "day_of_month") {
