@@ -39,11 +39,12 @@ export function GoalForm({ goalId, initial, onSubmit, onAutoSave, onCancel }: Go
     if (!isEditMode || !onAutoSave) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
+      if (!title || !targetValue || !startDate || !endDate) return;
       onAutoSave({
         title,
         goal_type: goalType,
         unit,
-        target_value: parseFloat(targetValue) || 0,
+        target_value: parseFloat(targetValue),
         baseline_value: baselineValue ? parseFloat(baselineValue) : undefined,
         start_date: startDate,
         end_date: endDate,
