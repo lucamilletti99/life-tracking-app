@@ -9,7 +9,7 @@ import { GoalProgressBar } from "./GoalProgressBar";
 interface GoalCardProps {
   progress: GoalProgress;
   onClick: () => void;
-  onEdit: (e: React.MouseEvent) => void;
+  onEdit?: (e: React.MouseEvent) => void;
 }
 
 const typeLabel: Record<string, string> = {
@@ -35,13 +35,18 @@ export function GoalCard({ progress, onClick, onEdit }: GoalCardProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onEdit}
-            className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
-          >
-            <Pencil size={14} />
-          </button>
+          {onEdit && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(e);
+              }}
+              className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+            >
+              <Pencil size={14} />
+            </button>
+          )}
           <Badge variant={is_on_track ? "default" : "secondary"} className="shrink-0 text-xs">
             {is_on_track ? "On track" : "Off track"}
           </Badge>

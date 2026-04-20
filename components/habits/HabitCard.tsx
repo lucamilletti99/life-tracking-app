@@ -31,7 +31,10 @@ export function HabitCard({ habit, onClick, onEdit }: HabitCardProps) {
         {onEdit && (
           <button
             type="button"
-            onClick={onEdit}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(e);
+            }}
             className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
           >
             <Pencil size={14} />
