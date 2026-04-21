@@ -8,8 +8,9 @@ import {
   subWeeks,
 } from "date-fns";
 
-import { getOccurrencesInRange } from "@/lib/recurrence";
+import { buildCalendarItems } from "@/lib/calendar-items";
 import { habitsService } from "@/lib/services/habits";
+import { logsService } from "@/lib/services/logs";
 import { todosService } from "@/lib/services/todos";
 import type { CalendarItem } from "@/lib/types";
 
@@ -44,47 +45,29 @@ export function useCalendarWeek() {
       setLoading(true);
 
       try {
-        const [todos, habits] = await Promise.all([
+        const [todos, habits, logs, habitGoalLinks, todoGoalLinks] = await Promise.all([
           todosService.forDateRange(
             format(weekStart, "yyyy-MM-dd'T'00:00:00"),
             format(weekEnd, "yyyy-MM-dd'T'23:59:59"),
           ),
           habitsService.list(),
+          logsService.forDateRange(startStr, endStr),
+          habitsService.listGoalLinks(),
+          todosService.listGoalLinks(),
         ]);
 
-        const todoItems: CalendarItem[] = todos.map((t) => ({
-          id: t.id,
-          title: t.title,
-          start_datetime: t.start_datetime,
-          end_datetime: t.end_datetime,
-          all_day: t.all_day,
-          kind: "todo",
-          status: t.status,
-          source_habit_id: t.source_habit_id,
-          requires_numeric_log: t.requires_numeric_log,
-          linked_goal_ids: [],
-        }));
-
-        const habitItems: CalendarItem[] = habits
-          .filter((h) => h.auto_create_calendar_instances)
-          .flatMap((habit) => {
-            const dates = getOccurrencesInRange(habit, startStr, endStr);
-            return dates.map((date) => ({
-              id: `habit-${habit.id}-${date}`,
-              title: habit.title,
-              start_datetime: `${date}T08:00:00`,
-              end_datetime: `${date}T08:30:00`,
-              all_day: false,
-              kind: "habit_occurrence" as const,
-              status: "pending" as const,
-              source_habit_id: habit.id,
-              requires_numeric_log: habit.tracking_type !== "boolean",
-              linked_goal_ids: [],
-            }));
-          });
+        const enriched = buildCalendarItems({
+          todos,
+          habits,
+          logs,
+          habitGoalLinks,
+          todoGoalLinks,
+          start: startStr,
+          end: endStr,
+        });
 
         if (!cancelled) {
-          setItems([...todoItems, ...habitItems]);
+          setItems(enriched);
         }
       } catch (error) {
         if (!cancelled) {

@@ -2,7 +2,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/supabase/client";
 
-import type { Todo } from "../types";
+import type { Todo, TodoGoalLink } from "../types";
 
 export const todosService = {
   list: async (): Promise<Todo[]> => {
@@ -69,6 +69,12 @@ export const todosService = {
       console.error("[todos] update failed", err);
       throw err;
     }
+  },
+
+  listGoalLinks: async (): Promise<TodoGoalLink[]> => {
+    const { data, error } = await supabase.from("todo_goal_links").select("*");
+    if (error) throw error;
+    return (data ?? []) as TodoGoalLink[];
   },
 
   delete: async (id: string): Promise<void> => {
