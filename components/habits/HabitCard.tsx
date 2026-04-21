@@ -99,6 +99,20 @@ export function HabitCard({
         </p>
       )}
 
+      {habit.identity_statement && (
+        <p className="mt-1 truncate text-xs text-neutral-600">
+          {habit.identity_statement}
+        </p>
+      )}
+
+      {(habit.cue_time || habit.cue_context || habit.cue_location) && (
+        <p className="mt-1 truncate text-[11px] text-neutral-500">
+          Cue: {habit.cue_time ? `${habit.cue_time} · ` : ""}
+          {habit.cue_context ? `${habit.cue_context} · ` : ""}
+          {habit.cue_location ?? ""}
+        </p>
+      )}
+
       <div className="mt-3 flex items-center gap-2">
         {habit.tracking_type === "boolean" ? (
           <Button

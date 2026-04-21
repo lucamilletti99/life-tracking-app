@@ -485,6 +485,27 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
           </div>
         )}
 
+        {habit && (
+          <div className="rounded-md border border-neutral-200 bg-neutral-50 p-2 text-xs text-neutral-600">
+            {habit.identity_statement && (
+              <p className="truncate">{habit.identity_statement}</p>
+            )}
+            {(habit.cue_time || habit.cue_context || habit.cue_location) && (
+              <p className="mt-1 truncate">
+                Cue: {habit.cue_time ? `${habit.cue_time} · ` : ""}
+                {habit.cue_context ? `${habit.cue_context} · ` : ""}
+                {habit.cue_location ?? ""}
+              </p>
+            )}
+            {habit.implementation_intention && (
+              <p className="mt-1 line-clamp-2">{habit.implementation_intention}</p>
+            )}
+            {habit.temptation_bundle && (
+              <p className="mt-1 line-clamp-2">Bundle: {habit.temptation_bundle}</p>
+            )}
+          </div>
+        )}
+
         {item.requires_numeric_log && (
           <div>
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
