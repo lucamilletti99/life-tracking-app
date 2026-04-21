@@ -34,6 +34,15 @@ export default function CalendarPage() {
     setDrawerState({ mode: "day", date });
   }
 
+  async function handleReschedule(itemId: string, newStart: string, newEnd: string) {
+    const ctx = await getServiceContext();
+    await todosService.update(ctx, itemId, {
+      start_datetime: newStart,
+      end_datetime: newEnd,
+    });
+    calendar.refresh();
+  }
+
   async function handleCreateTodo(data: Omit<Todo, "id" | "created_at" | "updated_at">) {
     const ctx = await getServiceContext();
     await todosService.create(ctx, data);
@@ -103,6 +112,7 @@ export default function CalendarPage() {
                 onItemClick={handleItemClick}
                 onSlotClick={handleSlotClick}
                 onDayClick={handleDayClick}
+                onReschedule={handleReschedule}
               />
             )}
             {view === "day" && (
