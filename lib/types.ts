@@ -125,3 +125,8 @@ export interface GoalProgress {
   percentage: number;
   is_on_track: boolean;
 }
+
+export type DrawerState =
+  | { mode: "item"; item: CalendarItem }
+  | { mode: "day"; date: Date }
+  | null;
