@@ -4,11 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 
 import { HabitCard } from "@/components/habits/HabitCard";
+import { HabitHeatmap } from "@/components/habits/HabitHeatmap";
 import { HabitForm } from "@/components/habits/HabitForm";
 import { LogForm } from "@/components/logs/LogForm";
 import { TopBar } from "@/components/layout/TopBar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
+  buildHabitHeatmap,
   computeHabitCompletionRate,
   getHabitTodayState,
   type HabitTodayState,
@@ -40,6 +42,7 @@ interface HabitInsight {
   currentStreak: number;
   completionRate30d: number;
   linkedGoalTitles: string[];
+  heatmap: ReturnType<typeof buildHabitHeatmap>;
 }
 
 export default function HabitsPage() {
@@ -52,6 +55,7 @@ export default function HabitsPage() {
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
   const [loggingHabitId, setLoggingHabitId] = useState<string | null>(null);
   const [quickActionHabitId, setQuickActionHabitId] = useState<string | null>(null);
+  const [expandedHeatmapByHabitId, setExpandedHeatmapByHabitId] = useState<Record<string, boolean>>({});
 
   const today = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
 
@@ -199,6 +203,7 @@ export default function HabitsPage() {
         currentStreak: streak.current,
         completionRate30d,
         linkedGoalTitles,
+        heatmap: buildHabitHeatmap(habit.id, logs, today),
       });
     }
 
@@ -222,6 +227,44 @@ export default function HabitsPage() {
         linked_goal_ids: [],
       }
     : null;
+
+  function toggleHeatmap(habitId: string) {
+    setExpandedHeatmapByHabitId((current) => ({
+      ...current,
+      [habitId]: !current[habitId],
+    }));
+  }
+
+  function renderHabitTile(habit: Habit) {
+    const insight = habitInsights.get(habit.id);
+    if (!insight) return null;
+
+    const expanded = Boolean(expandedHeatmapByHabitId[habit.id]);
+
+    return (
+      <div key={habit.id}>
+        <HabitCard
+          habit={habit}
+          status={insight.status}
+          currentStreak={insight.currentStreak}
+          completionRate30d={insight.completionRate30d}
+          linkedGoalTitles={insight.linkedGoalTitles}
+          busy={quickActionHabitId === habit.id}
+          onEdit={(e) => { e.stopPropagation(); setEditingHabitId(habit.id); }}
+          onQuickComplete={() => void handleQuickComplete(habit)}
+          onQuickLog={() => setLoggingHabitId(habit.id)}
+        />
+        <button
+          type="button"
+          className="mt-2 text-xs font-medium text-neutral-500 hover:text-neutral-800"
+          onClick={() => toggleHeatmap(habit.id)}
+        >
+          {expanded ? "Hide heatmap" : "Show heatmap"}
+        </button>
+        {expanded && <HabitHeatmap cells={insight.heatmap} />}
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -272,25 +315,7 @@ export default function HabitsPage() {
                   </span>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {section.habits.map((habit) => {
-                    const insight = habitInsights.get(habit.id);
-                    if (!insight) return null;
-
-                    return (
-                      <HabitCard
-                        key={habit.id}
-                        habit={habit}
-                        status={insight.status}
-                        currentStreak={insight.currentStreak}
-                        completionRate30d={insight.completionRate30d}
-                        linkedGoalTitles={insight.linkedGoalTitles}
-                        busy={quickActionHabitId === habit.id}
-                        onEdit={(e) => { e.stopPropagation(); setEditingHabitId(habit.id); }}
-                        onQuickComplete={() => void handleQuickComplete(habit)}
-                        onQuickLog={() => setLoggingHabitId(habit.id)}
-                      />
-                    );
-                  })}
+                  {section.habits.map((habit) => renderHabitTile(habit))}
                 </div>
               </section>
             ))}
@@ -301,25 +326,7 @@ export default function HabitsPage() {
                   Unlinked habits
                 </h2>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {grouped.unlinked.map((habit) => {
-                    const insight = habitInsights.get(habit.id);
-                    if (!insight) return null;
-
-                    return (
-                      <HabitCard
-                        key={habit.id}
-                        habit={habit}
-                        status={insight.status}
-                        currentStreak={insight.currentStreak}
-                        completionRate30d={insight.completionRate30d}
-                        linkedGoalTitles={insight.linkedGoalTitles}
-                        busy={quickActionHabitId === habit.id}
-                        onEdit={(e) => { e.stopPropagation(); setEditingHabitId(habit.id); }}
-                        onQuickComplete={() => void handleQuickComplete(habit)}
-                        onQuickLog={() => setLoggingHabitId(habit.id)}
-                      />
-                    );
-                  })}
+                  {grouped.unlinked.map((habit) => renderHabitTile(habit))}
                 </div>
               </section>
             )}
