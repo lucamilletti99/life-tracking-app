@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  addDays,
+  addMonths,
   addWeeks,
   eachDayOfInterval,
+  endOfDay,
+  endOfMonth,
   endOfWeek,
   format,
+  startOfDay,
+  startOfMonth,
   startOfWeek,
+  subDays,
+  subMonths,
   subWeeks,
 } from "date-fns";
 
@@ -14,7 +22,9 @@ import { logsService } from "@/lib/services/logs";
 import { todosService } from "@/lib/services/todos";
 import type { CalendarItem } from "@/lib/types";
 
-export function useCalendarWeek() {
+export type CalendarViewMode = "week" | "day" | "month";
+
+export function useCalendarWeek(view: CalendarViewMode = "week") {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [items, setItems] = useState<CalendarItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,8 +43,20 @@ export function useCalendarWeek() {
     [weekEnd, weekStart],
   );
 
-  const startStr = format(weekStart, "yyyy-MM-dd");
-  const endStr = format(weekEnd, "yyyy-MM-dd");
+  const rangeStart = useMemo(() => {
+    if (view === "day") return startOfDay(currentDate);
+    if (view === "month") return startOfMonth(currentDate);
+    return weekStart;
+  }, [currentDate, view, weekStart]);
+
+  const rangeEnd = useMemo(() => {
+    if (view === "day") return endOfDay(currentDate);
+    if (view === "month") return endOfMonth(currentDate);
+    return weekEnd;
+  }, [currentDate, view, weekEnd]);
+
+  const startStr = format(rangeStart, "yyyy-MM-dd");
+  const endStr = format(rangeEnd, "yyyy-MM-dd");
 
   const refresh = useCallback(() => setRefreshToken((n) => n + 1), []);
 
@@ -47,8 +69,8 @@ export function useCalendarWeek() {
       try {
         const [todos, habits, logs, habitGoalLinks, todoGoalLinks] = await Promise.all([
           todosService.forDateRange(
-            format(weekStart, "yyyy-MM-dd'T'00:00:00"),
-            format(weekEnd, "yyyy-MM-dd'T'23:59:59"),
+            format(rangeStart, "yyyy-MM-dd'T'00:00:00"),
+            format(rangeEnd, "yyyy-MM-dd'T'23:59:59"),
           ),
           habitsService.list(),
           logsService.forDateRange(startStr, endStr),
@@ -64,6 +86,7 @@ export function useCalendarWeek() {
           todoGoalLinks,
           start: startStr,
           end: endStr,
+          today: format(new Date(), "yyyy-MM-dd"),
         });
 
         if (!cancelled) {
@@ -86,7 +109,23 @@ export function useCalendarWeek() {
     return () => {
       cancelled = true;
     };
-  }, [endStr, refreshToken, startStr, weekEnd, weekStart]);
+  }, [endStr, rangeEnd, rangeStart, refreshToken, startStr]);
+
+  const goToPrevPeriod = useCallback(() => {
+    setCurrentDate((date) => {
+      if (view === "day") return subDays(date, 1);
+      if (view === "month") return subMonths(date, 1);
+      return subWeeks(date, 1);
+    });
+  }, [view]);
+
+  const goToNextPeriod = useCallback(() => {
+    setCurrentDate((date) => {
+      if (view === "day") return addDays(date, 1);
+      if (view === "month") return addMonths(date, 1);
+      return addWeeks(date, 1);
+    });
+  }, [view]);
 
   return {
     currentDate,
@@ -96,8 +135,9 @@ export function useCalendarWeek() {
     items,
     loading,
     refresh,
-    goToPrevWeek: () => setCurrentDate((d) => subWeeks(d, 1)),
-    goToNextWeek: () => setCurrentDate((d) => addWeeks(d, 1)),
+    setCurrentDate,
+    goToPrevPeriod,
+    goToNextPeriod,
     goToToday: () => setCurrentDate(new Date()),
   };
 }

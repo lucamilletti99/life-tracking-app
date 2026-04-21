@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { buildCalendarItems } from "./calendar-items";
-import type { Habit, HabitGoalLink, LogEntry, Todo, TodoGoalLink } from "./types";
 import { SKIPPED_LOG_NOTE } from "./habit-status";
+import type { Habit, HabitGoalLink, LogEntry, Todo, TodoGoalLink } from "./types";
 
 const baseHabit: Omit<Habit, "id" | "title" | "recurrence_type" | "recurrence_config"> = {
   tracking_type: "boolean",
@@ -45,6 +45,38 @@ function todo(overrides: Partial<Todo>): Todo {
 }
 
 describe("buildCalendarItems", () => {
+  it("flags today after a skipped yesterday for never-miss-twice cue", () => {
+    const habits: Habit[] = [
+      {
+        ...baseHabit,
+        id: "habit-1",
+        title: "Read",
+        recurrence_type: "daily",
+        recurrence_config: {},
+      },
+    ];
+
+    const items = buildCalendarItems({
+      todos: [],
+      habits,
+      logs: [
+        habitLog({
+          entry_date: "2026-04-20",
+          entry_datetime: "2026-04-20T10:00:00Z",
+          note: SKIPPED_LOG_NOTE,
+          numeric_value: 0,
+        }),
+      ],
+      habitGoalLinks: [],
+      todoGoalLinks: [],
+      start: "2026-04-21",
+      end: "2026-04-21",
+      today: "2026-04-21",
+    });
+
+    expect(items[0]?.never_miss_twice_alert).toBe(true);
+  });
+
   it("enriches habit occurrences with status and linked goals", () => {
     const habits: Habit[] = [
       {
@@ -68,6 +100,7 @@ describe("buildCalendarItems", () => {
       todoGoalLinks: [],
       start: "2026-04-20",
       end: "2026-04-20",
+      today: "2026-04-20",
     });
 
     expect(items).toHaveLength(1);
@@ -98,6 +131,7 @@ describe("buildCalendarItems", () => {
       todoGoalLinks: [],
       start: "2026-04-20",
       end: "2026-04-20",
+      today: "2026-04-20",
     });
 
     expect(items).toHaveLength(0);
@@ -116,6 +150,7 @@ describe("buildCalendarItems", () => {
       todoGoalLinks,
       start: "2026-04-20",
       end: "2026-04-20",
+      today: "2026-04-20",
     });
 
     expect(items).toHaveLength(1);

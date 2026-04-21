@@ -1,14 +1,16 @@
 import { format } from "date-fns";
 
+import { Button } from "@/components/ui/button";
 import type { CalendarItem } from "@/lib/types";
 
 interface DayViewProps {
   date: Date;
   items: CalendarItem[];
   onItemClick: (item: CalendarItem) => void;
+  onQuickComplete: (item: CalendarItem) => void;
 }
 
-export function DayView({ date, items, onItemClick }: DayViewProps) {
+export function DayView({ date, items, onItemClick, onQuickComplete }: DayViewProps) {
   const dayItems = items.filter((i) =>
     i.start_datetime.startsWith(format(date, "yyyy-MM-dd")),
   );
@@ -22,16 +24,44 @@ export function DayView({ date, items, onItemClick }: DayViewProps) {
         <p className="text-sm text-neutral-400">Nothing scheduled for this day.</p>
       ) : (
         dayItems.map((item) => (
-          <button
+          <div
             key={item.id}
-            onClick={() => onItemClick(item)}
-            className="rounded-xl border border-neutral-200 bg-white px-4 py-3 text-left hover:shadow-sm"
+            className="rounded-xl border border-neutral-200 bg-white px-4 py-3"
           >
-            <p className="text-sm font-medium text-neutral-900">{item.title}</p>
-            <p className="text-xs text-neutral-400">
-              {item.start_datetime.slice(11, 16)} - {item.end_datetime.slice(11, 16)}
-            </p>
-          </button>
+            <button
+              type="button"
+              onClick={() => onItemClick(item)}
+              className="w-full text-left"
+            >
+              <p className="text-sm font-medium text-neutral-900">{item.title}</p>
+              <div className="mt-0.5 flex items-center justify-between gap-4">
+                <p className="text-xs text-neutral-400">
+                  {item.start_datetime.slice(11, 16)} - {item.end_datetime.slice(11, 16)}
+                </p>
+                <span
+                  className={`text-[11px] font-medium capitalize ${
+                    item.status === "complete"
+                      ? "text-emerald-600"
+                      : item.status === "skipped"
+                        ? "text-neutral-500"
+                        : "text-neutral-400"
+                  }`}
+                >
+                  {item.status}
+                </span>
+              </div>
+            </button>
+
+            {item.status === "pending" && !item.requires_numeric_log && (
+              <Button
+                size="sm"
+                className="mt-2 h-7"
+                onClick={() => onQuickComplete(item)}
+              >
+                Complete
+              </Button>
+            )}
+          </div>
         ))
       )}
     </div>

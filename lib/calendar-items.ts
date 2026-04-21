@@ -1,3 +1,5 @@
+import { format, parseISO, subDays } from "date-fns";
+
 import { getOccurrencesInRange } from "./recurrence";
 import { getHabitOccurrenceStatusMap, habitStatusKey } from "./habit-status";
 import type {
@@ -17,6 +19,7 @@ interface BuildCalendarItemsInput {
   todoGoalLinks: TodoGoalLink[];
   start: string;
   end: string;
+  today: string;
 }
 
 function buildLinkMap<T extends { goal_id: string }>(
@@ -34,6 +37,10 @@ function buildLinkMap<T extends { goal_id: string }>(
   return map;
 }
 
+function dateBefore(dateIso: string): string {
+  return format(subDays(parseISO(`${dateIso}T00:00:00`), 1), "yyyy-MM-dd");
+}
+
 export function buildCalendarItems({
   todos,
   habits,
@@ -42,6 +49,7 @@ export function buildCalendarItems({
   todoGoalLinks,
   start,
   end,
+  today,
 }: BuildCalendarItemsInput): CalendarItem[] {
   const habitGoalMap = buildLinkMap(habitGoalLinks, (link) => link.habit_id);
   const todoGoalMap = buildLinkMap(todoGoalLinks, (link) => link.todo_id);
@@ -66,18 +74,25 @@ export function buildCalendarItems({
     .flatMap((habit) => {
       const linkedGoalIds = habitGoalMap.get(habit.id) ?? [];
 
-      return getOccurrencesInRange(habit, start, end).map((date) => ({
-        id: `habit-${habit.id}-${date}`,
-        title: habit.title,
-        start_datetime: `${date}T08:00:00`,
-        end_datetime: `${date}T08:30:00`,
-        all_day: false,
-        kind: "habit_occurrence" as const,
-        status: habitStatusMap.get(habitStatusKey(habit.id, date)) ?? "pending",
-        source_habit_id: habit.id,
-        requires_numeric_log: habit.tracking_type !== "boolean",
-        linked_goal_ids: linkedGoalIds,
-      }));
+      return getOccurrencesInRange(habit, start, end).map((date) => {
+        const status = habitStatusMap.get(habitStatusKey(habit.id, date)) ?? "pending";
+        const priorDateStatus = habitStatusMap.get(habitStatusKey(habit.id, dateBefore(date)));
+
+        return {
+          id: `habit-${habit.id}-${date}`,
+          title: habit.title,
+          start_datetime: `${date}T08:00:00`,
+          end_datetime: `${date}T08:30:00`,
+          all_day: false,
+          kind: "habit_occurrence" as const,
+          status,
+          source_habit_id: habit.id,
+          requires_numeric_log: habit.tracking_type !== "boolean",
+          linked_goal_ids: linkedGoalIds,
+          never_miss_twice_alert:
+            date === today && status === "pending" && priorDateStatus === "skipped",
+        };
+      });
     });
 
   return [...todoItems, ...habitItems].sort((a, b) =>

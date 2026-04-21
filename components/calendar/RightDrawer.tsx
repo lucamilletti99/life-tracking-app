@@ -134,6 +134,14 @@ function DayDrawer({ date, allItems, onClose, onRefresh, onItemSelect }: DayDraw
       if (item.kind === "todo") {
         await todosService.update(ctx, item.id, { status: "skipped" });
       } else if (item.source_habit_id) {
+        const habit = await habitsService.get(ctx, item.source_habit_id);
+        if (habit?.minimum_version) {
+          const proceed = window.confirm(
+            `Try the 2-minute version first: ${habit.minimum_version}\n\nSkip anyway?`,
+          );
+          if (!proceed) return;
+        }
+
         await logsService.create(ctx, {
           entry_date: dateStr,
           entry_datetime: new Date().toISOString(),
@@ -206,6 +214,13 @@ function DayDrawer({ date, allItems, onClose, onRefresh, onItemSelect }: DayDraw
                 <p className="mt-0.5 text-xs text-neutral-400">
                   {format(parseISO(item.start_datetime), "h:mm a")}
                 </p>
+                {item.linked_goal_ids.length > 0 && (
+                  <p className="mt-1 truncate text-[11px] text-neutral-500">
+                    Goals: {item.linked_goal_ids
+                      .map((goalId) => goals.find((goal) => goal.id === goalId)?.title ?? goalId)
+                      .join(", ")}
+                  </p>
+                )}
                 {item.status === "pending" && (
                   <div className="mt-2 flex gap-1.5">
                     {item.requires_numeric_log ? (
@@ -286,6 +301,7 @@ interface ItemDrawerProps {
 
 function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
   const [habit, setHabit] = useState<Habit | undefined>(undefined);
+  const [goalTitles, setGoalTitles] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -314,6 +330,39 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
       cancelled = true;
     };
   }, [item.source_habit_id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadGoalTitles() {
+      if (item.linked_goal_ids.length === 0) {
+        setGoalTitles([]);
+        return;
+      }
+
+      try {
+        const ctx = await getServiceContext();
+        const goals = await goalsService.list(ctx);
+        if (cancelled) return;
+
+        const titleById = new Map(goals.map((goal) => [goal.id, goal.title]));
+        setGoalTitles(
+          item.linked_goal_ids.map((goalId) => titleById.get(goalId) ?? goalId),
+        );
+      } catch (error) {
+        if (!cancelled) {
+          console.error(error);
+          setGoalTitles(item.linked_goal_ids);
+        }
+      }
+    }
+
+    loadGoalTitles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [item.linked_goal_ids]);
 
   const selectedDate = format(parseISO(item.start_datetime), "yyyy-MM-dd");
 
@@ -350,6 +399,13 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
       if (item.kind === "todo") {
         await todosService.update(ctx, item.id, { status: "skipped" });
       } else if (item.source_habit_id) {
+        if (habit?.minimum_version) {
+          const proceed = window.confirm(
+            `Try the 2-minute version first: ${habit.minimum_version}\n\nSkip anyway?`,
+          );
+          if (!proceed) return;
+        }
+
         await logsService.create(ctx, {
           entry_date: selectedDate,
           entry_datetime: new Date().toISOString(),
@@ -408,11 +464,26 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
           <Badge variant={item.kind === "habit_occurrence" ? "secondary" : "outline"}>
             {item.kind === "habit_occurrence" ? "Habit" : "Todo"}
           </Badge>
+          {item.never_miss_twice_alert && (
+            <Badge variant="outline" className="border-amber-300 text-amber-700">
+              Never miss twice
+            </Badge>
+          )}
           <span className="text-xs text-neutral-400">
             {format(parseISO(item.start_datetime), "h:mm a")} -{" "}
             {format(parseISO(item.end_datetime), "h:mm a")}
           </span>
         </div>
+
+        {goalTitles.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {goalTitles.map((title) => (
+              <Badge key={title} variant="outline" className="text-[10px]">
+                {title}
+              </Badge>
+            ))}
+          </div>
+        )}
 
         {item.requires_numeric_log && (
           <div>

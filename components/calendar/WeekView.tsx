@@ -64,6 +64,7 @@ interface WeekViewProps {
   days: Date[];
   items: CalendarItem[];
   onItemClick: (item: CalendarItem) => void;
+  onQuickComplete: (item: CalendarItem) => void;
   onSlotClick: (date: Date, hour: number) => void;
   onDayClick: (date: Date) => void;
   onReschedule: (itemId: string, newStart: string, newEnd: string) => void;
@@ -73,6 +74,7 @@ export function WeekView({
   days,
   items,
   onItemClick,
+  onQuickComplete,
   onSlotClick,
   onDayClick,
   onReschedule,
@@ -180,6 +182,7 @@ export function WeekView({
                       key={item.id}
                       item={item}
                       onClick={onItemClick}
+                      onQuickComplete={onQuickComplete}
                       draggable={item.kind === "todo"}
                       style={{
                         top: timeToOffset(item.start_datetime),

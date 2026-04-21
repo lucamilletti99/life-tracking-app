@@ -134,6 +134,7 @@ export interface CalendarItem {
   source_habit_id?: string;
   requires_numeric_log: boolean;
   linked_goal_ids: string[];
+  never_miss_twice_alert?: boolean;
 }
 
 export interface GoalProgress {
