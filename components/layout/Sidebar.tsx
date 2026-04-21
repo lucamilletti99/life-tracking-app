@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart2, Calendar, Repeat, Target } from "lucide-react";
+import { BarChart2, Calendar, CalendarCheck2, Repeat, Target } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 const nav = [
+  { href: "/today", label: "Today", icon: CalendarCheck2 },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/habits", label: "Habits", icon: Repeat },
