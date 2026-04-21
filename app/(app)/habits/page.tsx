@@ -1,15 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
 
 import { HabitCard } from "@/components/habits/HabitCard";
 import { HabitForm } from "@/components/habits/HabitForm";
+import { LogForm } from "@/components/logs/LogForm";
 import { TopBar } from "@/components/layout/TopBar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  computeHabitCompletionRate,
+  getHabitTodayState,
+  type HabitTodayState,
+} from "@/lib/habit-insights";
 import { groupHabitsByGoal } from "@/lib/habit-grouping";
 import { goalsService } from "@/lib/services/goals";
 import { habitsService } from "@/lib/services/habits";
-import type { Goal, Habit, HabitGoalLink } from "@/lib/types";
+import { logsService } from "@/lib/services/logs";
+import { computeStreak } from "@/lib/streak";
+import type { CalendarItem, Goal, Habit, HabitGoalLink, LogEntry } from "@/lib/types";
 
 const habitExamples = [
   {
@@ -26,13 +35,25 @@ const habitExamples = [
   },
 ];
 
+interface HabitInsight {
+  status: HabitTodayState;
+  currentStreak: number;
+  completionRate30d: number;
+  linkedGoalTitles: string[];
+}
+
 export default function HabitsPage() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [links, setLinks] = useState<HabitGoalLink[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
+  const [loggingHabitId, setLoggingHabitId] = useState<string | null>(null);
+  const [quickActionHabitId, setQuickActionHabitId] = useState<string | null>(null);
+
+  const today = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,22 +61,25 @@ export default function HabitsPage() {
     async function load() {
       setLoading(true);
       try {
-        const [habitRows, goalRows, linkRows] = await Promise.all([
+        const [habitRows, goalRows, linkRows, logRows] = await Promise.all([
           habitsService.list(),
           goalsService.list(),
           habitsService.listGoalLinks(),
+          logsService.list(),
         ]);
 
         if (!cancelled) {
           setHabits(habitRows);
           setGoals(goalRows);
           setLinks(linkRows);
+          setLogs(logRows);
         }
       } catch (error) {
         if (!cancelled) {
           setHabits([]);
           setGoals([]);
           setLinks([]);
+          setLogs([]);
           console.error(error);
         }
       } finally {
@@ -71,12 +95,14 @@ export default function HabitsPage() {
   }, []);
 
   async function refreshHabitsData() {
-    const [habitRows, linkRows] = await Promise.all([
+    const [habitRows, linkRows, logRows] = await Promise.all([
       habitsService.list(),
       habitsService.listGoalLinks(),
+      logsService.list(),
     ]);
     setHabits(habitRows);
     setLinks(linkRows);
+    setLogs(logRows);
   }
 
   async function handleCreate(data: Omit<Habit, "id" | "created_at" | "updated_at">) {
@@ -90,12 +116,112 @@ export default function HabitsPage() {
     await refreshHabitsData();
   }
 
+  async function handleQuickComplete(habit: Habit) {
+    setQuickActionHabitId(habit.id);
+    try {
+      await logsService.create({
+        entry_date: today,
+        entry_datetime: new Date().toISOString(),
+        source_type: "habit",
+        source_id: habit.id,
+        numeric_value: 1,
+        unit: habit.unit,
+        note: undefined,
+      });
+      await refreshHabitsData();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setQuickActionHabitId(null);
+    }
+  }
+
+  async function handleQuickLog(value: number, note?: string) {
+    const habit = habits.find((row) => row.id === loggingHabitId);
+    if (!habit) return;
+
+    setQuickActionHabitId(habit.id);
+    try {
+      await logsService.create({
+        entry_date: today,
+        entry_datetime: new Date().toISOString(),
+        source_type: "habit",
+        source_id: habit.id,
+        numeric_value: value,
+        unit: habit.unit,
+        note,
+      });
+      await refreshHabitsData();
+      setLoggingHabitId(null);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setQuickActionHabitId(null);
+    }
+  }
+
   const grouped = useMemo(
     () => groupHabitsByGoal({ goals, habits, links }),
     [goals, habits, links],
   );
 
+  const goalTitleById = useMemo(
+    () => new Map(goals.map((goal) => [goal.id, goal.title])),
+    [goals],
+  );
+
+  const habitInsights = useMemo(() => {
+    const goalIdsByHabitId = new Map<string, string[]>();
+
+    for (const link of links) {
+      const current = goalIdsByHabitId.get(link.habit_id) ?? [];
+      goalIdsByHabitId.set(link.habit_id, [...current, link.goal_id]);
+    }
+
+    const insights = new Map<string, HabitInsight>();
+
+    for (const habit of habits) {
+      const status = getHabitTodayState(habit, logs, today);
+      const streak = computeStreak(
+        habit.id,
+        habit.recurrence_type,
+        habit.recurrence_config,
+        logs,
+        today,
+      );
+      const completionRate30d = computeHabitCompletionRate(habit, logs, today, 30);
+      const linkedGoalTitles = (goalIdsByHabitId.get(habit.id) ?? [])
+        .map((goalId) => goalTitleById.get(goalId))
+        .filter((title): title is string => Boolean(title));
+
+      insights.set(habit.id, {
+        status,
+        currentStreak: streak.current,
+        completionRate30d,
+        linkedGoalTitles,
+      });
+    }
+
+    return insights;
+  }, [goalTitleById, habits, links, logs, today]);
+
   const editingHabit = editingHabitId ? habits.find((h) => h.id === editingHabitId) : undefined;
+  const loggingHabit = loggingHabitId ? habits.find((h) => h.id === loggingHabitId) : undefined;
+
+  const logFormItem: CalendarItem | null = loggingHabit
+    ? {
+        id: `habit-${loggingHabit.id}-${today}`,
+        title: loggingHabit.title,
+        start_datetime: `${today}T08:00:00`,
+        end_datetime: `${today}T08:30:00`,
+        all_day: false,
+        kind: "habit_occurrence",
+        status: "pending",
+        source_habit_id: loggingHabit.id,
+        requires_numeric_log: true,
+        linked_goal_ids: [],
+      }
+    : null;
 
   if (loading) {
     return (
@@ -146,13 +272,25 @@ export default function HabitsPage() {
                   </span>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {section.habits.map((habit) => (
-                    <HabitCard
-                      key={habit.id}
-                      habit={habit}
-                      onEdit={(e) => { e.stopPropagation(); setEditingHabitId(habit.id); }}
-                    />
-                  ))}
+                  {section.habits.map((habit) => {
+                    const insight = habitInsights.get(habit.id);
+                    if (!insight) return null;
+
+                    return (
+                      <HabitCard
+                        key={habit.id}
+                        habit={habit}
+                        status={insight.status}
+                        currentStreak={insight.currentStreak}
+                        completionRate30d={insight.completionRate30d}
+                        linkedGoalTitles={insight.linkedGoalTitles}
+                        busy={quickActionHabitId === habit.id}
+                        onEdit={(e) => { e.stopPropagation(); setEditingHabitId(habit.id); }}
+                        onQuickComplete={() => void handleQuickComplete(habit)}
+                        onQuickLog={() => setLoggingHabitId(habit.id)}
+                      />
+                    );
+                  })}
                 </div>
               </section>
             ))}
@@ -163,13 +301,25 @@ export default function HabitsPage() {
                   Unlinked habits
                 </h2>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {grouped.unlinked.map((habit) => (
-                    <HabitCard
-                      key={habit.id}
-                      habit={habit}
-                      onEdit={(e) => { e.stopPropagation(); setEditingHabitId(habit.id); }}
-                    />
-                  ))}
+                  {grouped.unlinked.map((habit) => {
+                    const insight = habitInsights.get(habit.id);
+                    if (!insight) return null;
+
+                    return (
+                      <HabitCard
+                        key={habit.id}
+                        habit={habit}
+                        status={insight.status}
+                        currentStreak={insight.currentStreak}
+                        completionRate30d={insight.completionRate30d}
+                        linkedGoalTitles={insight.linkedGoalTitles}
+                        busy={quickActionHabitId === habit.id}
+                        onEdit={(e) => { e.stopPropagation(); setEditingHabitId(habit.id); }}
+                        onQuickComplete={() => void handleQuickComplete(habit)}
+                        onQuickLog={() => setLoggingHabitId(habit.id)}
+                      />
+                    );
+                  })}
                 </div>
               </section>
             )}
@@ -186,8 +336,7 @@ export default function HabitsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit dialog */}
-      <Dialog open={Boolean(editingHabitId)} onOpenChange={(o) => { if (!o) setEditingHabitId(null); }}>
+      <Dialog open={Boolean(editingHabitId)} onOpenChange={(next) => { if (!next) setEditingHabitId(null); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit habit</DialogTitle>
@@ -199,6 +348,21 @@ export default function HabitsPage() {
               onSubmit={() => setEditingHabitId(null)}
               onAutoSave={(data) => handleAutoSaveHabit(editingHabit.id, data)}
               onCancel={() => setEditingHabitId(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(loggingHabitId)} onOpenChange={(next) => { if (!next) setLoggingHabitId(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Quick log</DialogTitle>
+          </DialogHeader>
+          {logFormItem && loggingHabit && (
+            <LogForm
+              item={logFormItem}
+              unit={loggingHabit.unit}
+              onSubmit={(value, note) => void handleQuickLog(value, note)}
             />
           )}
         </DialogContent>

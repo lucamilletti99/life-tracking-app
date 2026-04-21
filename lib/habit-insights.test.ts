@@ -5,6 +5,7 @@ import {
   buildHabitHeatmap,
   getHabitTodayState,
   getRemainingQuotaInPeriod,
+  computeHabitCompletionRate,
 } from "./habit-insights";
 import { SKIPPED_LOG_NOTE } from "./habit-status";
 
@@ -43,6 +44,25 @@ describe("buildHabitHeatmap", () => {
     expect(heatmap[83]?.date).toBe("2026-04-21");
     expect(heatmap.find((cell) => cell.date === "2026-04-20")?.status).toBe("complete");
     expect(heatmap.find((cell) => cell.date === "2026-04-19")?.status).toBe("skipped");
+  });
+});
+
+describe("completion rate", () => {
+  it("computes rolling completion rate across expected occurrences", () => {
+    const habit: Habit = {
+      ...baseHabit,
+      id: "habit-1",
+      title: "Read",
+      recurrence_type: "daily",
+      recurrence_config: {},
+    };
+
+    const rate = computeHabitCompletionRate(habit, [
+      log("2026-04-20"),
+      log("2026-04-21"),
+    ], "2026-04-21", 4);
+
+    expect(rate).toBe(50);
   });
 });
 

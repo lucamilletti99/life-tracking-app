@@ -12,6 +12,7 @@ import {
   subDays,
 } from "date-fns";
 
+import { getOccurrencesInRange } from "./recurrence";
 import { getHabitLogStatusMap, habitStatusKey } from "./habit-status";
 import type { Habit, LogEntry, RecurrenceConfig, RecurrenceType } from "./types";
 
@@ -91,6 +92,22 @@ export function buildHabitHeatmap(
   }
 
   return cells;
+}
+
+export function computeHabitCompletionRate(
+  habit: Habit,
+  logs: LogEntry[],
+  today: string,
+  days = 30,
+): number {
+  const completed = new Set(completedDatesForHabit(habit.id, logs, today));
+  const startDate = iso(subDays(toDate(today), Math.max(days - 1, 0)));
+  const expected = getOccurrencesInRange(habit, startDate, today);
+
+  if (expected.length === 0) return 0;
+
+  const completedExpected = expected.filter((date) => completed.has(date)).length;
+  return Math.round((completedExpected / expected.length) * 100);
 }
 
 export function getRemainingQuotaInPeriod(
