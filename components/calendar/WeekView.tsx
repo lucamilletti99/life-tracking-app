@@ -2,12 +2,20 @@
 
 import { format, isSameDay, parseISO } from "date-fns";
 
+import { getDayLoad } from "@/lib/utils";
 import type { CalendarItem } from "@/lib/types";
 
 import { CalendarItemChip } from "./CalendarItem";
 import { TimeColumn } from "./TimeColumn";
 
 const HOUR_HEIGHT = 56;
+
+const LOAD_DOT: Record<string, string> = {
+  empty: "",
+  light: "bg-sky-400",
+  moderate: "bg-amber-400",
+  busy: "bg-rose-400",
+};
 
 function timeToOffset(datetime: string): number {
   const d = parseISO(datetime);
@@ -26,9 +34,10 @@ interface WeekViewProps {
   items: CalendarItem[];
   onItemClick: (item: CalendarItem) => void;
   onSlotClick: (date: Date, hour: number) => void;
+  onDayClick: (date: Date) => void;
 }
 
-export function WeekView({ days, items, onItemClick, onSlotClick }: WeekViewProps) {
+export function WeekView({ days, items, onItemClick, onSlotClick, onDayClick }: WeekViewProps) {
   const today = new Date();
 
   return (
@@ -39,25 +48,35 @@ export function WeekView({ days, items, onItemClick, onSlotClick }: WeekViewProp
           className="grid flex-1 overflow-y-auto"
           style={{ gridTemplateColumns: `repeat(${days.length}, minmax(120px, 1fr))` }}
         >
-          {days.map((day) => (
-            <div
-              key={day.toISOString()}
-              className="sticky top-0 z-10 flex h-10 flex-col items-center justify-center border-b border-r border-neutral-200 bg-white"
-            >
-              <span className="text-[10px] uppercase tracking-wide text-neutral-400">
-                {format(day, "EEE")}
-              </span>
-              <span
-                className={`text-sm font-semibold ${
-                  isSameDay(day, today)
-                    ? "flex h-6 w-6 items-center justify-center rounded-full bg-neutral-900 text-white"
-                    : "text-neutral-700"
-                }`}
+          {days.map((day) => {
+            const load = getDayLoad(items, day);
+            const dotClass = LOAD_DOT[load];
+
+            return (
+              <button
+                key={day.toISOString()}
+                type="button"
+                onClick={() => onDayClick(day)}
+                className="sticky top-0 z-10 flex h-10 w-full flex-col items-center justify-center border-b border-r border-neutral-200 bg-white hover:bg-neutral-50"
               >
-                {format(day, "d")}
-              </span>
-            </div>
-          ))}
+                <span className="text-[10px] uppercase tracking-wide text-neutral-400">
+                  {format(day, "EEE")}
+                </span>
+                <span
+                  className={`text-sm font-semibold ${
+                    isSameDay(day, today)
+                      ? "flex h-6 w-6 items-center justify-center rounded-full bg-neutral-900 text-white"
+                      : "text-neutral-700"
+                  }`}
+                >
+                  {format(day, "d")}
+                </span>
+                {dotClass && (
+                  <span className={`mt-0.5 h-1.5 w-1.5 rounded-full ${dotClass}`} />
+                )}
+              </button>
+            );
+          })}
 
           {days.map((day) => {
             const dayItems = items.filter((item) => {
