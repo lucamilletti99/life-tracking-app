@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfWeek } from "date-fns";
 import {
   Area,
   AreaChart,
@@ -16,6 +16,7 @@ import { DayStrengthCard } from "@/components/analytics/DayStrengthCard";
 import { HabitCompletionTable } from "@/components/analytics/HabitCompletionTable";
 import { HabitLeaderboard } from "@/components/analytics/HabitLeaderboard";
 import { WeeklyComparisonCard } from "@/components/analytics/WeeklyComparisonCard";
+import { WeeklyReviewPrompt } from "@/components/analytics/WeeklyReviewPrompt";
 import { GoalProgressBar } from "@/components/goals/GoalProgressBar";
 import { TopBar } from "@/components/layout/TopBar";
 import { buildAnalyticsSnapshot } from "@/lib/analytics";
@@ -23,13 +24,15 @@ import { goalsService } from "@/lib/services/goals";
 import { habitsService } from "@/lib/services/habits";
 import { logsService } from "@/lib/services/logs";
 import { todosService } from "@/lib/services/todos";
-import type { Goal, Habit, LogEntry, Todo } from "@/lib/types";
+import { weeklyReviewsService } from "@/lib/services/weekly-reviews";
+import type { Goal, Habit, LogEntry, Todo, WeeklyReview } from "@/lib/types";
 
 export default function AnalyticsPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [todos, setTodos] = useState<Todo[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [weeklyReviews, setWeeklyReviews] = useState<WeeklyReview[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,11 +41,12 @@ export default function AnalyticsPage() {
     async function load() {
       setLoading(true);
       try {
-        const [goalRows, habitRows, todoRows, logRows] = await Promise.all([
+        const [goalRows, habitRows, todoRows, logRows, reviewRows] = await Promise.all([
           goalsService.list(),
           habitsService.list(),
           todosService.list(),
           logsService.list(),
+          weeklyReviewsService.list(),
         ]);
 
         if (!cancelled) {
@@ -50,6 +54,7 @@ export default function AnalyticsPage() {
           setHabits(habitRows);
           setTodos(todoRows);
           setLogs(logRows);
+          setWeeklyReviews(reviewRows);
         }
       } catch (error) {
         if (!cancelled) {
@@ -57,6 +62,7 @@ export default function AnalyticsPage() {
           setHabits([]);
           setTodos([]);
           setLogs([]);
+          setWeeklyReviews([]);
           console.error(error);
         }
       } finally {
@@ -76,6 +82,10 @@ export default function AnalyticsPage() {
   const snapshot = useMemo(
     () => buildAnalyticsSnapshot({ goals, habits, todos, logs, days: 14 }),
     [goals, habits, todos, logs],
+  );
+  const currentWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
+  const hasCurrentWeekReview = weeklyReviews.some(
+    (review) => review.week_start === currentWeekStart,
   );
 
   if (loading) {
@@ -179,6 +189,17 @@ export default function AnalyticsPage() {
             />
             <HabitLeaderboard leaderboard={snapshot.streakLeaderboard} />
           </div>
+
+          {!hasCurrentWeekReview && (
+            <WeeklyReviewPrompt
+              weekStart={currentWeekStart}
+              onSave={async (input) => {
+                await weeklyReviewsService.create(input);
+                const refreshed = await weeklyReviewsService.list();
+                setWeeklyReviews(refreshed);
+              }}
+            />
+          )}
 
           <HabitCompletionTable stats={snapshot.habitStats} />
           <CompletionHeatmapPanel heatmaps={snapshot.habitHeatmaps} />

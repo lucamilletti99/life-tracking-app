@@ -76,6 +76,7 @@ export interface HabitStack {
 
 export interface WeeklyReview {
   id: string;
+  user_id?: string;
   week_start: string;
   reflection_text?: string;
   habits_to_keep?: string[];
