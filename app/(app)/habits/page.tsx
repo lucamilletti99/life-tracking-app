@@ -3,14 +3,26 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { HabitCard } from "@/components/habits/HabitCard";
+import { HabitHeatmap } from "@/components/habits/HabitHeatmap";
 import { HabitForm } from "@/components/habits/HabitForm";
+import { LogForm } from "@/components/logs/LogForm";
 import { TopBar } from "@/components/layout/TopBar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  buildHabitHeatmap,
+  computeHabitCompletionRate,
+  getHabitTodayState,
+  type HabitTodayState,
+} from "@/lib/habit-insights";
+import { buildHabitStackCueMap } from "@/lib/habit-stack-insights";
 import { groupHabitsByGoal } from "@/lib/habit-grouping";
 import { getServiceContext } from "@/lib/services/context";
 import { goalsService } from "@/lib/services/goals";
 import { habitsService } from "@/lib/services/habits";
-import type { Goal, Habit, HabitGoalLink } from "@/lib/types";
+import { habitStacksService } from "@/lib/services/habit-stacks";
+import { logsService } from "@/lib/services/logs";
+import { computeStreak } from "@/lib/streak";
+import type { CalendarItem, Goal, Habit, HabitGoalLink, HabitStack, LogEntry } from "@/lib/types";
 
 const habitExamples = [
   {
@@ -27,13 +39,29 @@ const habitExamples = [
   },
 ];
 
+interface HabitInsight {
+  status: HabitTodayState;
+  currentStreak: number;
+  completionRate30d: number;
+  linkedGoalTitles: string[];
+  stackCueFromTitles: string[];
+  heatmap: ReturnType<typeof buildHabitHeatmap>;
+}
+
 export default function HabitsPage() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [links, setLinks] = useState<HabitGoalLink[]>([]);
+  const [habitStacks, setHabitStacks] = useState<HabitStack[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
+  const [loggingHabitId, setLoggingHabitId] = useState<string | null>(null);
+  const [quickActionHabitId, setQuickActionHabitId] = useState<string | null>(null);
+  const [expandedHeatmapByHabitId, setExpandedHeatmapByHabitId] = useState<Record<string, boolean>>({});
+
+  const today = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,12 +80,16 @@ export default function HabitsPage() {
           setHabits(habitRows);
           setGoals(goalRows);
           setLinks(linkRows);
+          setHabitStacks(stackRows);
+          setLogs(logRows);
         }
       } catch (error) {
         if (!cancelled) {
           setHabits([]);
           setGoals([]);
           setLinks([]);
+          setHabitStacks([]);
+          setLogs([]);
           console.error(error);
         }
       } finally {
@@ -106,12 +138,178 @@ export default function HabitsPage() {
     [editingHabitId, handleAutoSaveHabit],
   );
 
+  async function handleQuickComplete(habit: Habit) {
+    setQuickActionHabitId(habit.id);
+    try {
+      await logsService.create({
+        entry_date: today,
+        entry_datetime: new Date().toISOString(),
+        source_type: "habit",
+        source_id: habit.id,
+        numeric_value: 1,
+        unit: habit.unit,
+        note: undefined,
+      });
+      await refreshHabitsData();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setQuickActionHabitId(null);
+    }
+  }
+
+  async function handleQuickLog(value: number, note?: string) {
+    const habit = habits.find((row) => row.id === loggingHabitId);
+    if (!habit) return;
+
+    setQuickActionHabitId(habit.id);
+    try {
+      await logsService.create({
+        entry_date: today,
+        entry_datetime: new Date().toISOString(),
+        source_type: "habit",
+        source_id: habit.id,
+        numeric_value: value,
+        unit: habit.unit,
+        note,
+      });
+      await refreshHabitsData();
+      setLoggingHabitId(null);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setQuickActionHabitId(null);
+    }
+  }
+
+  async function handleTogglePause(habit: Habit) {
+    setQuickActionHabitId(habit.id);
+    try {
+      await habitsService.update(habit.id, {
+        is_paused: !habit.is_paused,
+      });
+      await refreshHabitsData();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setQuickActionHabitId(null);
+    }
+  }
+
   const grouped = useMemo(
     () => groupHabitsByGoal({ goals, habits, links }),
     [goals, habits, links],
   );
 
+  const goalTitleById = useMemo(
+    () => new Map(goals.map((goal) => [goal.id, goal.title])),
+    [goals],
+  );
+
+  const habitInsights = useMemo(() => {
+    const goalIdsByHabitId = new Map<string, string[]>();
+    const stackCueByHabitId = buildHabitStackCueMap({
+      habits,
+      stacks: habitStacks,
+      logs,
+      today,
+    });
+    const habitById = new Map(habits.map((habit) => [habit.id, habit]));
+
+    for (const link of links) {
+      const current = goalIdsByHabitId.get(link.habit_id) ?? [];
+      goalIdsByHabitId.set(link.habit_id, [...current, link.goal_id]);
+    }
+
+    const insights = new Map<string, HabitInsight>();
+
+    for (const habit of habits) {
+      const status = getHabitTodayState(habit, logs, today);
+      const streak = computeStreak(
+        habit.id,
+        habit.recurrence_type,
+        habit.recurrence_config,
+        logs,
+        today,
+      );
+      const completionRate30d = computeHabitCompletionRate(habit, logs, today, 30);
+      const linkedGoalTitles = (goalIdsByHabitId.get(habit.id) ?? [])
+        .map((goalId) => goalTitleById.get(goalId))
+        .filter((title): title is string => Boolean(title));
+      const stackCueFromTitles = (stackCueByHabitId.get(habit.id) ?? [])
+        .map((precedingHabitId) => habitById.get(precedingHabitId)?.title)
+        .filter((title): title is string => Boolean(title));
+
+      insights.set(habit.id, {
+        status,
+        currentStreak: streak.current,
+        completionRate30d,
+        linkedGoalTitles,
+        stackCueFromTitles,
+        heatmap: buildHabitHeatmap(habit.id, logs, today),
+      });
+    }
+
+    return insights;
+  }, [goalTitleById, habitStacks, habits, links, logs, today]);
+
   const editingHabit = editingHabitId ? habits.find((h) => h.id === editingHabitId) : undefined;
+  const loggingHabit = loggingHabitId ? habits.find((h) => h.id === loggingHabitId) : undefined;
+
+  const logFormItem: CalendarItem | null = loggingHabit
+    ? {
+        id: `habit-${loggingHabit.id}-${today}`,
+        title: loggingHabit.title,
+        start_datetime: `${today}T08:00:00`,
+        end_datetime: `${today}T08:30:00`,
+        all_day: false,
+        kind: "habit_occurrence",
+        status: "pending",
+        source_habit_id: loggingHabit.id,
+        requires_numeric_log: true,
+        linked_goal_ids: [],
+      }
+    : null;
+
+  function toggleHeatmap(habitId: string) {
+    setExpandedHeatmapByHabitId((current) => ({
+      ...current,
+      [habitId]: !current[habitId],
+    }));
+  }
+
+  function renderHabitTile(habit: Habit) {
+    const insight = habitInsights.get(habit.id);
+    if (!insight) return null;
+
+    const expanded = Boolean(expandedHeatmapByHabitId[habit.id]);
+
+    return (
+      <div key={habit.id}>
+        <HabitCard
+          habit={habit}
+          status={insight.status}
+          currentStreak={insight.currentStreak}
+          completionRate30d={insight.completionRate30d}
+          linkedGoalTitles={insight.linkedGoalTitles}
+          stackCueFromTitles={insight.stackCueFromTitles}
+          busy={quickActionHabitId === habit.id}
+          onEdit={(e) => { e.stopPropagation(); setEditingHabitId(habit.id); }}
+          onQuickComplete={() => void handleQuickComplete(habit)}
+          onQuickLog={() => setLoggingHabitId(habit.id)}
+          onTogglePause={() => void handleTogglePause(habit)}
+        />
+        <button
+          type="button"
+          className="mt-2 text-xs font-medium text-neutral-500 hover:text-neutral-800"
+          onClick={() => toggleHeatmap(habit.id)}
+        >
+          {expanded ? "Hide heatmap" : "Show heatmap"}
+        </button>
+        {expanded && <HabitHeatmap cells={insight.heatmap} />}
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -162,13 +360,7 @@ export default function HabitsPage() {
                   </span>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {section.habits.map((habit) => (
-                    <HabitCard
-                      key={habit.id}
-                      habit={habit}
-                      onEdit={(e) => { e.stopPropagation(); setEditingHabitId(habit.id); }}
-                    />
-                  ))}
+                  {section.habits.map((habit) => renderHabitTile(habit))}
                 </div>
               </section>
             ))}
@@ -179,13 +371,7 @@ export default function HabitsPage() {
                   Unlinked habits
                 </h2>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {grouped.unlinked.map((habit) => (
-                    <HabitCard
-                      key={habit.id}
-                      habit={habit}
-                      onEdit={(e) => { e.stopPropagation(); setEditingHabitId(habit.id); }}
-                    />
-                  ))}
+                  {grouped.unlinked.map((habit) => renderHabitTile(habit))}
                 </div>
               </section>
             )}
@@ -202,8 +388,7 @@ export default function HabitsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit dialog */}
-      <Dialog open={Boolean(editingHabitId)} onOpenChange={(o) => { if (!o) setEditingHabitId(null); }}>
+      <Dialog open={Boolean(editingHabitId)} onOpenChange={(next) => { if (!next) setEditingHabitId(null); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit habit</DialogTitle>
@@ -214,6 +399,21 @@ export default function HabitsPage() {
               initial={editingHabit}
               onAutoSave={handleEditingHabitAutoSave}
               onCancel={() => setEditingHabitId(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(loggingHabitId)} onOpenChange={(next) => { if (!next) setLoggingHabitId(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Quick log</DialogTitle>
+          </DialogHeader>
+          {logFormItem && loggingHabit && (
+            <LogForm
+              item={logFormItem}
+              unit={loggingHabit.unit}
+              onSubmit={(value, note) => void handleQuickLog(value, note)}
             />
           )}
         </DialogContent>

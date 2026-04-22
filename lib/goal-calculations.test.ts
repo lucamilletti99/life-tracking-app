@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { calculateGoalProgress } from "./goal-calculations";
+import { buildGoalTrajectory, calculateGoalProgress } from "./goal-calculations";
 import type { Goal, LogEntry } from "./types";
 
 const base = {
@@ -171,5 +171,77 @@ describe("limit goal", () => {
     const result = calculateGoalProgress(goal, logs);
 
     expect(result.is_on_track).toBe(false);
+  });
+});
+
+describe("goal trajectory", () => {
+  it("projects accumulation goals with pace direction", () => {
+    const goal: Goal = {
+      ...base,
+      id: "g-acc",
+      title: "Read 100 pages",
+      goal_type: "accumulation",
+      unit: "pages",
+      target_value: 100,
+      start_date: "2026-04-01",
+      end_date: "2026-04-10",
+    };
+
+    const logs: LogEntry[] = [
+      {
+        id: "l1",
+        entry_date: "2026-04-01",
+        entry_datetime: "2026-04-01T10:00:00Z",
+        source_type: "habit",
+        numeric_value: 10,
+        unit: "pages",
+        created_at: "",
+        updated_at: "",
+      },
+      {
+        id: "l2",
+        entry_date: "2026-04-04",
+        entry_datetime: "2026-04-04T10:00:00Z",
+        source_type: "habit",
+        numeric_value: 15,
+        unit: "pages",
+        created_at: "",
+        updated_at: "",
+      },
+    ];
+
+    const trajectory = buildGoalTrajectory(goal, logs, "2026-04-05");
+    expect(trajectory.current).toBe(25);
+    expect(trajectory.expectedByNow).toBeGreaterThan(25);
+    expect(trajectory.paceLabel).toBe("behind");
+    expect(trajectory.projectedEndValue).toBeGreaterThan(0);
+  });
+
+  it("flags limit goals that are projected to overshoot", () => {
+    const goal: Goal = {
+      ...base,
+      id: "g-limit",
+      title: "Spend under 600",
+      goal_type: "limit",
+      unit: "USD",
+      target_value: 600,
+      start_date: "2026-04-01",
+      end_date: "2026-04-30",
+    };
+
+    const logs: LogEntry[] = Array.from({ length: 10 }, (_, i) => ({
+      id: `l${i}`,
+      entry_date: `2026-04-${String(i + 1).padStart(2, "0")}`,
+      entry_datetime: `2026-04-${String(i + 1).padStart(2, "0")}T10:00:00Z`,
+      source_type: "habit" as const,
+      numeric_value: 30,
+      unit: "USD",
+      created_at: "",
+      updated_at: "",
+    }));
+
+    const trajectory = buildGoalTrajectory(goal, logs, "2026-04-10");
+    expect(trajectory.paceLabel).toBe("behind");
+    expect(trajectory.projectedEndValue).toBeGreaterThan(goal.target_value);
   });
 });

@@ -16,7 +16,7 @@ import {
   subWeeks,
 } from "date-fns";
 
-import { getOccurrencesInRange } from "@/lib/recurrence";
+import { buildCalendarItems } from "@/lib/calendar-items";
 import { habitsService } from "@/lib/services/habits";
 import { getServiceContext } from "@/lib/services/context";
 import { getHabitOccurrenceStatusMap, habitStatusKey } from "@/lib/habit-status";
@@ -133,7 +133,7 @@ export function useCalendarWeek(view: CalendarViewMode = "week") {
           });
 
         if (!cancelled) {
-          setItems([...todoItems, ...habitItems]);
+          setItems(enriched);
         }
       } catch (error) {
         if (!cancelled) {

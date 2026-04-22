@@ -45,6 +45,9 @@ export const logsService = {
     ctx: ServiceContext,
     data: Omit<LogEntry, "id" | "created_at" | "updated_at" | "goal_ids"> & { goal_ids?: string[] },
   ): Promise<LogEntry> => {
+    const data = "userId" in dataOrCtx ? maybeData : dataOrCtx;
+    if (!data) throw new Error("Log payload is required");
+
     try {
       const { data: row, error } = await supabase
         .from("log_entries")

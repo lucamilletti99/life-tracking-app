@@ -6,6 +6,7 @@ import { ChevronLeft } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 
 import { GoalProgressBar } from "@/components/goals/GoalProgressBar";
+import { GoalTrajectoryChart } from "@/components/goals/GoalTrajectoryChart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { calculateGoalProgress } from "@/lib/goal-calculations";
@@ -99,6 +100,11 @@ export default function GoalDetailPage() {
       .slice(0, 10);
   }, [goal, logs]);
 
+  const trajectory = useMemo(() => {
+    if (!goal) return null;
+    return buildGoalTrajectory(goal, logs, format(new Date(), "yyyy-MM-dd"));
+  }, [goal, logs]);
+
   if (loading) {
     return <div className="p-6 text-neutral-400">Loading goal...</div>;
   }
@@ -147,6 +153,26 @@ export default function GoalDetailPage() {
               {goal.goal_type}
             </p>
           </div>
+
+          {trajectory && (
+            <div className="space-y-3">
+              <GoalTrajectoryChart trajectory={trajectory} />
+              <div className="rounded-xl border border-neutral-200 bg-white p-4">
+                <p className="text-sm text-neutral-700">{trajectoryMessage}</p>
+                <p className="mt-2 text-xs text-neutral-500">
+                  Projected end value: {trajectory.projectedEndValue.toLocaleString(undefined, {
+                    maximumFractionDigits: 1,
+                  })} {goal.unit}
+                </p>
+                {trajectory.projectedCompletionDate && (
+                  <p className="text-xs text-neutral-500">
+                    At current pace, projected completion:{" "}
+                    {format(parseISO(trajectory.projectedCompletionDate), "MMM d, yyyy")}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {linkedHabits.length > 0 && (
             <div>

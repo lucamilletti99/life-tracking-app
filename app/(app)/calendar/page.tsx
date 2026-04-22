@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { DayView } from "@/components/calendar/DayView";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCalendarWeek } from "@/hooks/useCalendarWeek";
 import { getServiceContext } from "@/lib/services/context";
+import { logsService } from "@/lib/services/logs";
 import { todosService } from "@/lib/services/todos";
 import type { CalendarItem, DrawerState, Todo } from "@/lib/types";
 
@@ -41,6 +42,31 @@ export default function CalendarPage() {
       end_datetime: newEnd,
     });
     calendar.refresh();
+  }
+
+  async function handleQuickComplete(item: CalendarItem) {
+    try {
+      const ctx = await getServiceContext();
+
+      if (item.kind === "todo") {
+        await todosService.update(ctx, item.id, { status: "complete" });
+      } else if (item.source_habit_id) {
+        const entryDate = format(parseISO(item.start_datetime), "yyyy-MM-dd");
+        await logsService.create(ctx, {
+          entry_date: entryDate,
+          entry_datetime: new Date().toISOString(),
+          source_type: "habit",
+          source_id: item.source_habit_id,
+          numeric_value: 1,
+          unit: undefined,
+          note: undefined,
+        });
+      }
+
+      calendar.refresh();
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async function handleCreateTodo(data: Omit<Todo, "id" | "created_at" | "updated_at">) {
@@ -110,6 +136,7 @@ export default function CalendarPage() {
                 days={calendar.days}
                 items={calendar.items}
                 onItemClick={handleItemClick}
+                onQuickComplete={(item) => void handleQuickComplete(item)}
                 onSlotClick={handleSlotClick}
                 onDayClick={handleDayClick}
                 onReschedule={handleReschedule}
@@ -120,6 +147,7 @@ export default function CalendarPage() {
                 date={calendar.currentDate}
                 items={calendar.items}
                 onItemClick={handleItemClick}
+                onQuickComplete={(item) => void handleQuickComplete(item)}
               />
             )}
             {view === "month" && (

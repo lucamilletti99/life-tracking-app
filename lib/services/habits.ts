@@ -32,6 +32,9 @@ export const habitsService = {
     ctx: ServiceContext,
     data: Omit<Habit, "id" | "created_at" | "updated_at">,
   ): Promise<Habit> => {
+    const data = "userId" in dataOrCtx ? maybeData : dataOrCtx;
+    if (!data) throw new Error("Habit payload is required");
+
     try {
       const { data: row, error } = await supabase
         .from("habits")

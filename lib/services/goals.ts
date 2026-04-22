@@ -32,6 +32,9 @@ export const goalsService = {
     ctx: ServiceContext,
     data: Omit<Goal, "id" | "created_at" | "updated_at">,
   ): Promise<Goal> => {
+    const data = "userId" in dataOrCtx ? maybeData : dataOrCtx;
+    if (!data) throw new Error("Goal payload is required");
+
     try {
       const { data: row, error } = await supabase
         .from("goals")

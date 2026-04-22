@@ -1,14 +1,16 @@
 import { format } from "date-fns";
 
+import { Button } from "@/components/ui/button";
 import type { CalendarItem } from "@/lib/types";
 
 interface DayViewProps {
   date: Date;
   items: CalendarItem[];
   onItemClick: (item: CalendarItem) => void;
+  onQuickComplete: (item: CalendarItem) => void;
 }
 
-export function DayView({ date, items, onItemClick }: DayViewProps) {
+export function DayView({ date, items, onItemClick, onQuickComplete }: DayViewProps) {
   const dayItems = items.filter((i) =>
     i.start_datetime.startsWith(format(date, "yyyy-MM-dd")),
   );
@@ -22,7 +24,7 @@ export function DayView({ date, items, onItemClick }: DayViewProps) {
         <p className="text-sm text-neutral-400">Nothing scheduled for this day.</p>
       ) : (
         dayItems.map((item) => (
-          <button
+          <div
             key={item.id}
             type="button"
             onClick={() => onItemClick(item)}

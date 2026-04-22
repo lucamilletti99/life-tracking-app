@@ -67,6 +67,10 @@ export const todosService = {
     ctx: ServiceContext,
     data: Omit<Todo, "id" | "created_at" | "updated_at">,
   ): Promise<Todo> => {
+    const data =
+      "userId" in dataOrCtx ? maybeData : dataOrCtx;
+    if (!data) throw new Error("Todo payload is required");
+
     try {
       const { data: row, error } = await supabase
         .from("todos")

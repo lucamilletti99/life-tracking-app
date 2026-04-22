@@ -41,15 +41,49 @@ export interface Habit {
   id: string;
   title: string;
   description?: string;
+  cue_time?: string;
+  cue_location?: string;
+  cue_context?: string;
+  implementation_intention?: string;
+  minimum_version?: string;
+  environment_setup?: string;
+  identity_statement?: string;
+  temptation_bundle?: string;
   tracking_type: TrackingType;
   unit?: string;
   recurrence_type: RecurrenceType;
   recurrence_config: RecurrenceConfig;
   default_target_value?: number;
   auto_create_calendar_instances: boolean;
+  is_paused?: boolean;
+  paused_until?: string;
+  difficulty_rating?: number;
+  sort_order?: number;
+  category?: string;
+  color_tag?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface HabitStack {
+  id: string;
+  preceding_habit_id: string;
+  following_habit_id: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface WeeklyReview {
+  id: string;
+  user_id?: string;
+  week_start: string;
+  reflection_text?: string;
+  habits_to_keep?: string[];
+  habits_to_stop?: string[];
+  habits_to_start?: string[];
+  overall_score?: number;
+  created_at: string;
 }
 
 export interface HabitGoalLink {
@@ -118,6 +152,7 @@ export interface CalendarItem {
   source_habit_id?: string;
   requires_numeric_log: boolean;
   linked_goal_ids: string[];
+  never_miss_twice_alert?: boolean;
 }
 
 export interface GoalProgress {

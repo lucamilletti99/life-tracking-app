@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Life Tracking App
 
-## Getting Started
+Atomic Habits-aligned goal and habit execution app built with Next.js App Router, TypeScript, and Supabase.
 
-First, run the development server:
+## Core Flows
+
+- Goals with progress and pace projection messaging.
+- Habits with cue/identity metadata, streak tracking, pause/resume, and per-habit heatmaps.
+- Today dashboard for one-click daily execution.
+- Calendar with quick complete/skip actions, never-miss-twice cueing, and context drawer.
+- Analytics with leaderboard, weekly comparisons, day strength, heatmaps, and weekly review prompts.
+
+## Local Development
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Start the app:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Quality Gates
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Run these before shipping:
 
-## Learn More
+```bash
+npm run lint
+npm run test
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Database Migrations
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Atomic Habits feature migrations:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `supabase/migrations/003_atomic_habits_foundation.sql`
+- `supabase/migrations/004_atomic_habits_differentiators.sql`
 
-## Deploy on Vercel
+Suggested validation:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+supabase db reset
+supabase db diff --use-migra
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Delivery Docs
+
+Implementation acceptance and rollout details are documented in:
+
+- `docs/implementation-prd.md`
+- `docs/superpowers/plans/2026-04-21-atomic-habits-behavior-engine.md`
