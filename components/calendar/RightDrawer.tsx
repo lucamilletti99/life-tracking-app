@@ -8,7 +8,9 @@ import { LogForm } from "@/components/logs/LogForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SKIPPED_LOG_NOTE } from "@/lib/habit-status";
+import { buildHabitStackCueMap } from "@/lib/habit-stack-insights";
 import { habitsService } from "@/lib/services/habits";
+import { habitStacksService } from "@/lib/services/habit-stacks";
 import { goalsService } from "@/lib/services/goals";
 import { getServiceContext } from "@/lib/services/context";
 import { logsService } from "@/lib/services/logs";
@@ -302,7 +304,9 @@ interface ItemDrawerProps {
 function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
   const [habit, setHabit] = useState<Habit | undefined>(undefined);
   const [goalTitles, setGoalTitles] = useState<string[]>([]);
+  const [stackCueFromTitles, setStackCueFromTitles] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const selectedDate = format(parseISO(item.start_datetime), "yyyy-MM-dd");
 
   useEffect(() => {
     let cancelled = false;
@@ -364,7 +368,48 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
     };
   }, [item.linked_goal_ids]);
 
-  const selectedDate = format(parseISO(item.start_datetime), "yyyy-MM-dd");
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStackCue() {
+      if (!item.source_habit_id) {
+        setStackCueFromTitles([]);
+        return;
+      }
+
+      try {
+        const [stacks, allHabits, dayLogs] = await Promise.all([
+          habitStacksService.list(),
+          habitsService.list(),
+          logsService.forDateRange(selectedDate, selectedDate),
+        ]);
+        if (cancelled) return;
+
+        const cueMap = buildHabitStackCueMap({
+          habits: allHabits,
+          stacks,
+          logs: dayLogs,
+          today: selectedDate,
+        });
+        const habitById = new Map(allHabits.map((row) => [row.id, row.title]));
+        const titles = (cueMap.get(item.source_habit_id) ?? [])
+          .map((habitId) => habitById.get(habitId))
+          .filter((title): title is string => Boolean(title));
+        setStackCueFromTitles(titles);
+      } catch (error) {
+        if (!cancelled) {
+          console.error(error);
+          setStackCueFromTitles([]);
+        }
+      }
+    }
+
+    loadStackCue();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [item.source_habit_id, selectedDate]);
 
   async function handleComplete() {
     setSubmitting(true);
@@ -485,6 +530,13 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
           </div>
         )}
 
+        {stackCueFromTitles.length > 0 && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
+            Stack up next after: {stackCueFromTitles[0]}
+            {stackCueFromTitles.length > 1 ? ` (+${stackCueFromTitles.length - 1})` : ""}
+          </div>
+        )}
+
         {habit && (
           <div className="rounded-md border border-neutral-200 bg-neutral-50 p-2 text-xs text-neutral-600">
             {habit.identity_statement && (
@@ -511,7 +563,7 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
               Log value
             </p>
-            <LogForm unit={habit?.unit} onSubmit={handleLog} />
+            <LogForm item={item} unit={habit?.unit} onSubmit={handleLog} />
           </div>
         )}
 

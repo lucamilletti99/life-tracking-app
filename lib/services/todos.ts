@@ -3,9 +3,12 @@ import { toast } from "sonner";
 import { supabase } from "@/supabase/client";
 
 import type { Todo, TodoGoalLink } from "../types";
+import type { ServiceContext } from "./context";
 
 export const todosService = {
-  list: async (): Promise<Todo[]> => {
+  list: async (ctx?: ServiceContext): Promise<Todo[]> => {
+    void ctx;
+
     const { data, error } = await supabase
       .from("todos")
       .select("*")
@@ -14,7 +17,13 @@ export const todosService = {
     return (data ?? []) as Todo[];
   },
 
-  get: async (id: string): Promise<Todo | undefined> => {
+  get: async (
+    idOrCtx: string | ServiceContext,
+    maybeId?: string,
+  ): Promise<Todo | undefined> => {
+    const id = typeof idOrCtx === "string" ? idOrCtx : maybeId;
+    if (!id) throw new Error("Todo id is required");
+
     const { data, error } = await supabase
       .from("todos")
       .select("*")
@@ -24,7 +33,18 @@ export const todosService = {
     return data as Todo | undefined;
   },
 
-  forDateRange: async (start: string, end: string): Promise<Todo[]> => {
+  forDateRange: async (
+    startOrCtx: string | ServiceContext,
+    endOrStart: string,
+    maybeEnd?: string,
+  ): Promise<Todo[]> => {
+    const [start, end] =
+      typeof startOrCtx === "string"
+        ? [startOrCtx, endOrStart]
+        : [endOrStart, maybeEnd];
+
+    if (!start || !end) throw new Error("Start and end dates are required");
+
     const { data, error } = await supabase
       .from("todos")
       .select("*")
@@ -35,8 +55,13 @@ export const todosService = {
   },
 
   create: async (
-    data: Omit<Todo, "id" | "created_at" | "updated_at">,
+    dataOrCtx: Omit<Todo, "id" | "created_at" | "updated_at"> | ServiceContext,
+    maybeData?: Omit<Todo, "id" | "created_at" | "updated_at">,
   ): Promise<Todo> => {
+    const data =
+      "userId" in dataOrCtx ? maybeData : dataOrCtx;
+    if (!data) throw new Error("Todo payload is required");
+
     try {
       const { data: row, error } = await supabase
         .from("todos")
@@ -53,7 +78,18 @@ export const todosService = {
     }
   },
 
-  update: async (id: string, data: Partial<Todo>): Promise<Todo> => {
+  update: async (
+    idOrCtx: string | ServiceContext,
+    dataOrId: Partial<Todo> | string,
+    maybeData?: Partial<Todo>,
+  ): Promise<Todo> => {
+    const [id, data] =
+      typeof idOrCtx === "string"
+        ? [idOrCtx, dataOrId as Partial<Todo>]
+        : [dataOrId as string, maybeData];
+
+    if (!id || !data) throw new Error("Todo id and payload are required");
+
     try {
       const { data: row, error } = await supabase
         .from("todos")

@@ -12,15 +12,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { buildTodaySnapshot } from "@/lib/today-snapshot";
 import { goalsService } from "@/lib/services/goals";
 import { habitsService } from "@/lib/services/habits";
+import { habitStacksService } from "@/lib/services/habit-stacks";
 import { logsService } from "@/lib/services/logs";
 import { todosService } from "@/lib/services/todos";
-import type { CalendarItem, Goal, Habit, HabitGoalLink, LogEntry, Todo } from "@/lib/types";
+import type { CalendarItem, Goal, Habit, HabitGoalLink, HabitStack, LogEntry, Todo } from "@/lib/types";
 
 export default function TodayPage() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [todos, setTodos] = useState<Todo[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [links, setLinks] = useState<HabitGoalLink[]>([]);
+  const [habitStacks, setHabitStacks] = useState<HabitStack[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyHabitId, setBusyHabitId] = useState<string | null>(null);
@@ -34,11 +36,12 @@ export default function TodayPage() {
     async function load() {
       setLoading(true);
       try {
-        const [habitRows, todoRows, goalRows, linkRows, logRows] = await Promise.all([
+        const [habitRows, todoRows, goalRows, linkRows, stackRows, logRows] = await Promise.all([
           habitsService.list(),
           todosService.list(),
           goalsService.list(),
           habitsService.listGoalLinks(),
+          habitStacksService.list(),
           logsService.list(),
         ]);
 
@@ -47,6 +50,7 @@ export default function TodayPage() {
           setTodos(todoRows);
           setGoals(goalRows);
           setLinks(linkRows);
+          setHabitStacks(stackRows);
           setLogs(logRows);
         }
       } catch (error) {
@@ -55,6 +59,7 @@ export default function TodayPage() {
           setTodos([]);
           setGoals([]);
           setLinks([]);
+          setHabitStacks([]);
           setLogs([]);
           console.error(error);
         }
@@ -73,16 +78,18 @@ export default function TodayPage() {
   }, []);
 
   async function refreshData() {
-    const [habitRows, todoRows, linkRows, logRows] = await Promise.all([
+    const [habitRows, todoRows, linkRows, stackRows, logRows] = await Promise.all([
       habitsService.list(),
       todosService.list(),
       habitsService.listGoalLinks(),
+      habitStacksService.list(),
       logsService.list(),
     ]);
 
     setHabits(habitRows);
     setTodos(todoRows);
     setLinks(linkRows);
+    setHabitStacks(stackRows);
     setLogs(logRows);
   }
 
@@ -134,8 +141,17 @@ export default function TodayPage() {
   }
 
   const snapshot = useMemo(
-    () => buildTodaySnapshot({ habits, todos, goals, logs, habitGoalLinks: links, today }),
-    [goals, habits, links, logs, today, todos],
+    () =>
+      buildTodaySnapshot({
+        habits,
+        todos,
+        goals,
+        logs,
+        habitGoalLinks: links,
+        habitStacks,
+        today,
+      }),
+    [goals, habitStacks, habits, links, logs, today, todos],
   );
 
   const loggingHabit = loggingHabitId ? habits.find((habit) => habit.id === loggingHabitId) : undefined;

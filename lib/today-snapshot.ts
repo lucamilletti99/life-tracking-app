@@ -1,13 +1,15 @@
 import { calculateGoalProgress } from "./goal-calculations";
+import { buildHabitStackCueMap } from "./habit-stack-insights";
 import { getHabitTodayState, type HabitTodayState } from "./habit-insights";
 import { computeStreak } from "./streak";
-import type { Goal, Habit, HabitGoalLink, LogEntry, Todo } from "./types";
+import type { Goal, Habit, HabitGoalLink, HabitStack, LogEntry, Todo } from "./types";
 
 export interface TodayHabitItem {
   habit: Habit;
   status: HabitTodayState;
   currentStreak: number;
   linkedGoalIds: string[];
+  stackCueFromTitles?: string[];
 }
 
 export interface TodaySnapshot {
@@ -46,9 +48,17 @@ export function buildTodaySnapshot(input: {
   goals: Goal[];
   logs: LogEntry[];
   habitGoalLinks: HabitGoalLink[];
+  habitStacks: HabitStack[];
   today: string;
 }): TodaySnapshot {
+  const habitById = new Map(input.habits.map((habit) => [habit.id, habit]));
   const linksByHabit = new Map<string, string[]>();
+  const stackCueByHabitId = buildHabitStackCueMap({
+    habits: input.habits,
+    stacks: input.habitStacks,
+    logs: input.logs,
+    today: input.today,
+  });
 
   for (const link of input.habitGoalLinks) {
     const current = linksByHabit.get(link.habit_id) ?? [];
@@ -79,6 +89,9 @@ export function buildTodaySnapshot(input: {
       status,
       currentStreak: streak.current,
       linkedGoalIds: linksByHabit.get(habit.id) ?? [],
+      stackCueFromTitles: (stackCueByHabitId.get(habit.id) ?? [])
+        .map((precedingHabitId) => habitById.get(precedingHabitId)?.title)
+        .filter((title): title is string => Boolean(title)),
     };
 
     habitGroups[bucketFromCueTime(habit.cue_time)].push(row);

@@ -3,9 +3,12 @@ import { toast } from "sonner";
 import { supabase } from "@/supabase/client";
 
 import type { LogEntry } from "../types";
+import type { ServiceContext } from "./context";
 
 export const logsService = {
-  list: async (): Promise<LogEntry[]> => {
+  list: async (ctx?: ServiceContext): Promise<LogEntry[]> => {
+    void ctx;
+
     const { data, error } = await supabase
       .from("log_entries")
       .select("*")
@@ -14,7 +17,13 @@ export const logsService = {
     return (data ?? []) as LogEntry[];
   },
 
-  forSource: async (sourceId: string): Promise<LogEntry[]> => {
+  forSource: async (
+    sourceIdOrCtx: string | ServiceContext,
+    maybeSourceId?: string,
+  ): Promise<LogEntry[]> => {
+    const sourceId = typeof sourceIdOrCtx === "string" ? sourceIdOrCtx : maybeSourceId;
+    if (!sourceId) throw new Error("Source id is required");
+
     const { data, error } = await supabase
       .from("log_entries")
       .select("*")
@@ -23,7 +32,18 @@ export const logsService = {
     return (data ?? []) as LogEntry[];
   },
 
-  forDateRange: async (start: string, end: string): Promise<LogEntry[]> => {
+  forDateRange: async (
+    startOrCtx: string | ServiceContext,
+    endOrStart: string,
+    maybeEnd?: string,
+  ): Promise<LogEntry[]> => {
+    const [start, end] =
+      typeof startOrCtx === "string"
+        ? [startOrCtx, endOrStart]
+        : [endOrStart, maybeEnd];
+
+    if (!start || !end) throw new Error("Start and end dates are required");
+
     const { data, error } = await supabase
       .from("log_entries")
       .select("*")
@@ -34,8 +54,12 @@ export const logsService = {
   },
 
   create: async (
-    data: Omit<LogEntry, "id" | "created_at" | "updated_at">,
+    dataOrCtx: Omit<LogEntry, "id" | "created_at" | "updated_at"> | ServiceContext,
+    maybeData?: Omit<LogEntry, "id" | "created_at" | "updated_at">,
   ): Promise<LogEntry> => {
+    const data = "userId" in dataOrCtx ? maybeData : dataOrCtx;
+    if (!data) throw new Error("Log payload is required");
+
     try {
       const { data: row, error } = await supabase
         .from("log_entries")
@@ -52,7 +76,13 @@ export const logsService = {
     }
   },
 
-  delete: async (id: string): Promise<void> => {
+  delete: async (
+    idOrCtx: string | ServiceContext,
+    maybeId?: string,
+  ): Promise<void> => {
+    const id = typeof idOrCtx === "string" ? idOrCtx : maybeId;
+    if (!id) throw new Error("Log id is required");
+
     try {
       const { error } = await supabase.from("log_entries").delete().eq("id", id);
       if (error) throw error;

@@ -45,7 +45,11 @@ export function TodayHabitList({
                 {rows.map((row) => (
                   <div
                     key={row.habit.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-neutral-100 p-3"
+                    className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${
+                      row.stackCueFromTitles?.length
+                        ? "border-amber-300 bg-amber-50/30"
+                        : "border-neutral-100"
+                    }`}
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-neutral-900">{row.habit.title}</p>
@@ -56,7 +60,20 @@ export function TodayHabitList({
                         <Badge variant="secondary" className="text-[11px]">
                           <Flame className="mr-1 h-3 w-3" /> {row.currentStreak}
                         </Badge>
+                        {row.stackCueFromTitles?.length ? (
+                          <Badge variant="outline" className="border-amber-300 text-[11px] text-amber-700">
+                            Stack up next
+                          </Badge>
+                        ) : null}
                       </div>
+                      {row.stackCueFromTitles?.length ? (
+                        <p className="mt-1 truncate text-xs text-amber-700">
+                          After: {row.stackCueFromTitles[0]}
+                          {row.stackCueFromTitles.length > 1
+                            ? ` +${row.stackCueFromTitles.length - 1}`
+                            : ""}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       {row.habit.tracking_type === "boolean" ? (

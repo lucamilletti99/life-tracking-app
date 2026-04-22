@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { format, parseISO, startOfWeek } from "date-fns";
+import { format, parseISO } from "date-fns";
 import {
   Area,
   AreaChart,
@@ -25,6 +25,7 @@ import { habitsService } from "@/lib/services/habits";
 import { logsService } from "@/lib/services/logs";
 import { todosService } from "@/lib/services/todos";
 import { weeklyReviewsService } from "@/lib/services/weekly-reviews";
+import { shouldShowWeeklyReviewPrompt, weekStartForDate } from "@/lib/weekly-review";
 import type { Goal, Habit, LogEntry, Todo, WeeklyReview } from "@/lib/types";
 
 export default function AnalyticsPage() {
@@ -83,10 +84,12 @@ export default function AnalyticsPage() {
     () => buildAnalyticsSnapshot({ goals, habits, todos, logs, days: 14 }),
     [goals, habits, todos, logs],
   );
-  const currentWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
-  const hasCurrentWeekReview = weeklyReviews.some(
-    (review) => review.week_start === currentWeekStart,
-  );
+  const today = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
+  const currentWeekStart = weekStartForDate(today);
+  const showWeeklyReviewPrompt = shouldShowWeeklyReviewPrompt({
+    asOf: today,
+    weeklyReviews,
+  });
 
   if (loading) {
     return (
@@ -190,7 +193,7 @@ export default function AnalyticsPage() {
             <HabitLeaderboard leaderboard={snapshot.streakLeaderboard} />
           </div>
 
-          {!hasCurrentWeekReview && (
+          {showWeeklyReviewPrompt && (
             <WeeklyReviewPrompt
               weekStart={currentWeekStart}
               onSave={async (input) => {

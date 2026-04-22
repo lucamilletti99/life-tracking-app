@@ -35,6 +35,7 @@ interface HabitCardProps {
   currentStreak: number;
   completionRate30d: number;
   linkedGoalTitles: string[];
+  stackCueFromTitles?: string[];
   busy?: boolean;
   onEdit?: (e: React.MouseEvent) => void;
   onQuickComplete?: () => void;
@@ -48,14 +49,21 @@ export function HabitCard({
   currentStreak,
   completionRate30d,
   linkedGoalTitles,
+  stackCueFromTitles = [],
   busy = false,
   onEdit,
   onQuickComplete,
   onQuickLog,
   onTogglePause,
 }: HabitCardProps) {
+  const hasStackCue = stackCueFromTitles.length > 0;
+
   return (
-    <div className="w-full rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+    <div
+      className={`w-full rounded-xl border bg-white p-4 shadow-sm ${
+        hasStackCue ? "border-amber-300 ring-1 ring-amber-100" : "border-neutral-200"
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-medium text-neutral-900">{habit.title}</p>
@@ -92,7 +100,19 @@ export function HabitCard({
         <Badge variant="outline" className="text-[11px]">
           {completionRate30d}% · 30d
         </Badge>
+        {hasStackCue && (
+          <Badge variant="outline" className="border-amber-300 text-[11px] text-amber-700">
+            Stack up next
+          </Badge>
+        )}
       </div>
+
+      {hasStackCue && (
+        <p className="mt-2 truncate text-xs text-amber-700">
+          After: {stackCueFromTitles[0]}
+          {stackCueFromTitles.length > 1 ? ` +${stackCueFromTitles.length - 1}` : ""}
+        </p>
+      )}
 
       {linkedGoalTitles.length > 0 && (
         <p className="mt-2 truncate text-xs text-neutral-500">

@@ -85,6 +85,7 @@ describe("buildTodaySnapshot", () => {
       habitGoalLinks: [
         { id: "hgl-1", habit_id: "h-morning", goal_id: "goal-1", created_at: "" },
       ],
+      habitStacks: [],
       today: "2026-04-21",
     });
 
@@ -104,6 +105,7 @@ describe("buildTodaySnapshot", () => {
       goals: [goal()],
       logs: [log({ source_id: "h1", entry_date: "2026-04-21" })],
       habitGoalLinks: [] as HabitGoalLink[],
+      habitStacks: [],
       today: "2026-04-21",
     });
 
@@ -111,5 +113,31 @@ describe("buildTodaySnapshot", () => {
     expect(snapshot.summary.totalHabits).toBe(2);
     expect(snapshot.summary.completedHabits).toBe(1);
     expect(snapshot.summary.habitsWithActiveStreak).toBeGreaterThanOrEqual(1);
+  });
+
+  it("includes stack sequencing cues for the next habit in a chain", () => {
+    const snapshot = buildTodaySnapshot({
+      habits: [
+        habit({ id: "habit-a", title: "Drink water" }),
+        habit({ id: "habit-b", title: "Meditate" }),
+      ],
+      todos: [],
+      goals: [],
+      logs: [log({ source_id: "habit-a", entry_date: "2026-04-21" })],
+      habitGoalLinks: [],
+      habitStacks: [
+        {
+          id: "stack-1",
+          preceding_habit_id: "habit-a",
+          following_habit_id: "habit-b",
+          sort_order: 0,
+          created_at: "",
+        },
+      ],
+      today: "2026-04-21",
+    });
+
+    const stackedRow = snapshot.habitGroups.anytime.find((row) => row.habit.id === "habit-b");
+    expect(stackedRow?.stackCueFromTitles).toEqual(["Drink water"]);
   });
 });

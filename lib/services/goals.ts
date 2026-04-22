@@ -3,9 +3,12 @@ import { toast } from "sonner";
 import { supabase } from "@/supabase/client";
 
 import type { Goal } from "../types";
+import type { ServiceContext } from "./context";
 
 export const goalsService = {
-  list: async (): Promise<Goal[]> => {
+  list: async (ctx?: ServiceContext): Promise<Goal[]> => {
+    void ctx;
+
     const { data, error } = await supabase
       .from("goals")
       .select("*")
@@ -15,7 +18,13 @@ export const goalsService = {
     return (data ?? []) as Goal[];
   },
 
-  get: async (id: string): Promise<Goal | undefined> => {
+  get: async (
+    idOrCtx: string | ServiceContext,
+    maybeId?: string,
+  ): Promise<Goal | undefined> => {
+    const id = typeof idOrCtx === "string" ? idOrCtx : maybeId;
+    if (!id) throw new Error("Goal id is required");
+
     const { data, error } = await supabase
       .from("goals")
       .select("*")
@@ -26,8 +35,12 @@ export const goalsService = {
   },
 
   create: async (
-    data: Omit<Goal, "id" | "created_at" | "updated_at">,
+    dataOrCtx: Omit<Goal, "id" | "created_at" | "updated_at"> | ServiceContext,
+    maybeData?: Omit<Goal, "id" | "created_at" | "updated_at">,
   ): Promise<Goal> => {
+    const data = "userId" in dataOrCtx ? maybeData : dataOrCtx;
+    if (!data) throw new Error("Goal payload is required");
+
     try {
       const { data: row, error } = await supabase
         .from("goals")
@@ -44,7 +57,18 @@ export const goalsService = {
     }
   },
 
-  update: async (id: string, data: Partial<Goal>): Promise<Goal> => {
+  update: async (
+    idOrCtx: string | ServiceContext,
+    dataOrId: Partial<Goal> | string,
+    maybeData?: Partial<Goal>,
+  ): Promise<Goal> => {
+    const [id, data] =
+      typeof idOrCtx === "string"
+        ? [idOrCtx, dataOrId as Partial<Goal>]
+        : [dataOrId as string, maybeData];
+
+    if (!id || !data) throw new Error("Goal id and payload are required");
+
     try {
       const { data: row, error } = await supabase
         .from("goals")
@@ -62,7 +86,13 @@ export const goalsService = {
     }
   },
 
-  delete: async (id: string): Promise<void> => {
+  delete: async (
+    idOrCtx: string | ServiceContext,
+    maybeId?: string,
+  ): Promise<void> => {
+    const id = typeof idOrCtx === "string" ? idOrCtx : maybeId;
+    if (!id) throw new Error("Goal id is required");
+
     try {
       const { error } = await supabase.from("goals").delete().eq("id", id);
       if (error) throw error;
@@ -74,7 +104,13 @@ export const goalsService = {
     }
   },
 
-  getLinkedHabitIds: async (goalId: string): Promise<string[]> => {
+  getLinkedHabitIds: async (
+    goalIdOrCtx: string | ServiceContext,
+    maybeGoalId?: string,
+  ): Promise<string[]> => {
+    const goalId = typeof goalIdOrCtx === "string" ? goalIdOrCtx : maybeGoalId;
+    if (!goalId) throw new Error("Goal id is required");
+
     const { data, error } = await supabase
       .from("habit_goal_links")
       .select("habit_id")
@@ -83,7 +119,13 @@ export const goalsService = {
     return (data ?? []).map((r: { habit_id: string }) => r.habit_id);
   },
 
-  getLinkedTodoIds: async (goalId: string): Promise<string[]> => {
+  getLinkedTodoIds: async (
+    goalIdOrCtx: string | ServiceContext,
+    maybeGoalId?: string,
+  ): Promise<string[]> => {
+    const goalId = typeof goalIdOrCtx === "string" ? goalIdOrCtx : maybeGoalId;
+    if (!goalId) throw new Error("Goal id is required");
+
     const { data, error } = await supabase
       .from("todo_goal_links")
       .select("todo_id")
@@ -92,14 +134,36 @@ export const goalsService = {
     return (data ?? []).map((r: { todo_id: string }) => r.todo_id);
   },
 
-  linkHabit: async (goalId: string, habitId: string): Promise<void> => {
+  linkHabit: async (
+    goalIdOrCtx: string | ServiceContext,
+    habitIdOrGoalId: string,
+    maybeHabitId?: string,
+  ): Promise<void> => {
+    const [goalId, habitId] =
+      typeof goalIdOrCtx === "string"
+        ? [goalIdOrCtx, habitIdOrGoalId]
+        : [habitIdOrGoalId, maybeHabitId];
+
+    if (!goalId || !habitId) throw new Error("Goal and habit ids are required");
+
     const { error } = await supabase
       .from("habit_goal_links")
       .upsert({ goal_id: goalId, habit_id: habitId });
     if (error) throw error;
   },
 
-  unlinkHabit: async (goalId: string, habitId: string): Promise<void> => {
+  unlinkHabit: async (
+    goalIdOrCtx: string | ServiceContext,
+    habitIdOrGoalId: string,
+    maybeHabitId?: string,
+  ): Promise<void> => {
+    const [goalId, habitId] =
+      typeof goalIdOrCtx === "string"
+        ? [goalIdOrCtx, habitIdOrGoalId]
+        : [habitIdOrGoalId, maybeHabitId];
+
+    if (!goalId || !habitId) throw new Error("Goal and habit ids are required");
+
     const { error } = await supabase
       .from("habit_goal_links")
       .delete()

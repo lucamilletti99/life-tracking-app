@@ -15,12 +15,14 @@ import {
   getHabitTodayState,
   type HabitTodayState,
 } from "@/lib/habit-insights";
+import { buildHabitStackCueMap } from "@/lib/habit-stack-insights";
 import { groupHabitsByGoal } from "@/lib/habit-grouping";
 import { goalsService } from "@/lib/services/goals";
 import { habitsService } from "@/lib/services/habits";
+import { habitStacksService } from "@/lib/services/habit-stacks";
 import { logsService } from "@/lib/services/logs";
 import { computeStreak } from "@/lib/streak";
-import type { CalendarItem, Goal, Habit, HabitGoalLink, LogEntry } from "@/lib/types";
+import type { CalendarItem, Goal, Habit, HabitGoalLink, HabitStack, LogEntry } from "@/lib/types";
 
 const habitExamples = [
   {
@@ -42,6 +44,7 @@ interface HabitInsight {
   currentStreak: number;
   completionRate30d: number;
   linkedGoalTitles: string[];
+  stackCueFromTitles: string[];
   heatmap: ReturnType<typeof buildHabitHeatmap>;
 }
 
@@ -49,6 +52,7 @@ export default function HabitsPage() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [links, setLinks] = useState<HabitGoalLink[]>([]);
+  const [habitStacks, setHabitStacks] = useState<HabitStack[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -65,10 +69,11 @@ export default function HabitsPage() {
     async function load() {
       setLoading(true);
       try {
-        const [habitRows, goalRows, linkRows, logRows] = await Promise.all([
+        const [habitRows, goalRows, linkRows, stackRows, logRows] = await Promise.all([
           habitsService.list(),
           goalsService.list(),
           habitsService.listGoalLinks(),
+          habitStacksService.list(),
           logsService.list(),
         ]);
 
@@ -76,6 +81,7 @@ export default function HabitsPage() {
           setHabits(habitRows);
           setGoals(goalRows);
           setLinks(linkRows);
+          setHabitStacks(stackRows);
           setLogs(logRows);
         }
       } catch (error) {
@@ -83,6 +89,7 @@ export default function HabitsPage() {
           setHabits([]);
           setGoals([]);
           setLinks([]);
+          setHabitStacks([]);
           setLogs([]);
           console.error(error);
         }
@@ -99,13 +106,15 @@ export default function HabitsPage() {
   }, []);
 
   async function refreshHabitsData() {
-    const [habitRows, linkRows, logRows] = await Promise.all([
+    const [habitRows, linkRows, stackRows, logRows] = await Promise.all([
       habitsService.list(),
       habitsService.listGoalLinks(),
+      habitStacksService.list(),
       logsService.list(),
     ]);
     setHabits(habitRows);
     setLinks(linkRows);
+    setHabitStacks(stackRows);
     setLogs(logRows);
   }
 
@@ -190,6 +199,13 @@ export default function HabitsPage() {
 
   const habitInsights = useMemo(() => {
     const goalIdsByHabitId = new Map<string, string[]>();
+    const stackCueByHabitId = buildHabitStackCueMap({
+      habits,
+      stacks: habitStacks,
+      logs,
+      today,
+    });
+    const habitById = new Map(habits.map((habit) => [habit.id, habit]));
 
     for (const link of links) {
       const current = goalIdsByHabitId.get(link.habit_id) ?? [];
@@ -211,18 +227,22 @@ export default function HabitsPage() {
       const linkedGoalTitles = (goalIdsByHabitId.get(habit.id) ?? [])
         .map((goalId) => goalTitleById.get(goalId))
         .filter((title): title is string => Boolean(title));
+      const stackCueFromTitles = (stackCueByHabitId.get(habit.id) ?? [])
+        .map((precedingHabitId) => habitById.get(precedingHabitId)?.title)
+        .filter((title): title is string => Boolean(title));
 
       insights.set(habit.id, {
         status,
         currentStreak: streak.current,
         completionRate30d,
         linkedGoalTitles,
+        stackCueFromTitles,
         heatmap: buildHabitHeatmap(habit.id, logs, today),
       });
     }
 
     return insights;
-  }, [goalTitleById, habits, links, logs, today]);
+  }, [goalTitleById, habitStacks, habits, links, logs, today]);
 
   const editingHabit = editingHabitId ? habits.find((h) => h.id === editingHabitId) : undefined;
   const loggingHabit = loggingHabitId ? habits.find((h) => h.id === loggingHabitId) : undefined;
@@ -263,6 +283,7 @@ export default function HabitsPage() {
           currentStreak={insight.currentStreak}
           completionRate30d={insight.completionRate30d}
           linkedGoalTitles={insight.linkedGoalTitles}
+          stackCueFromTitles={insight.stackCueFromTitles}
           busy={quickActionHabitId === habit.id}
           onEdit={(e) => { e.stopPropagation(); setEditingHabitId(habit.id); }}
           onQuickComplete={() => void handleQuickComplete(habit)}
