@@ -39,6 +39,7 @@ interface HabitCardProps {
   onEdit?: (e: React.MouseEvent) => void;
   onQuickComplete?: () => void;
   onQuickLog?: () => void;
+  onTogglePause?: () => void;
 }
 
 export function HabitCard({
@@ -51,6 +52,7 @@ export function HabitCard({
   onEdit,
   onQuickComplete,
   onQuickLog,
+  onTogglePause,
 }: HabitCardProps) {
   return (
     <div className="w-full rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
@@ -134,6 +136,14 @@ export function HabitCard({
             Log
           </Button>
         )}
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7"
+          onClick={onTogglePause}
+        >
+          {habit.is_paused ? "Resume" : "Pause"}
+        </Button>
       </div>
     </div>
   );

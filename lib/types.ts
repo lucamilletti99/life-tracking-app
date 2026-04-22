@@ -66,6 +66,25 @@ export interface Habit {
   updated_at: string;
 }
 
+export interface HabitStack {
+  id: string;
+  preceding_habit_id: string;
+  following_habit_id: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface WeeklyReview {
+  id: string;
+  week_start: string;
+  reflection_text?: string;
+  habits_to_keep?: string[];
+  habits_to_stop?: string[];
+  habits_to_start?: string[];
+  overall_score?: number;
+  created_at: string;
+}
+
 export interface HabitGoalLink {
   id: string;
   habit_id: string;

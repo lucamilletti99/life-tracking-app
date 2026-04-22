@@ -164,6 +164,20 @@ export default function HabitsPage() {
     }
   }
 
+  async function handleTogglePause(habit: Habit) {
+    setQuickActionHabitId(habit.id);
+    try {
+      await habitsService.update(habit.id, {
+        is_paused: !habit.is_paused,
+      });
+      await refreshHabitsData();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setQuickActionHabitId(null);
+    }
+  }
+
   const grouped = useMemo(
     () => groupHabitsByGoal({ goals, habits, links }),
     [goals, habits, links],
@@ -253,6 +267,7 @@ export default function HabitsPage() {
           onEdit={(e) => { e.stopPropagation(); setEditingHabitId(habit.id); }}
           onQuickComplete={() => void handleQuickComplete(habit)}
           onQuickLog={() => setLoggingHabitId(habit.id)}
+          onTogglePause={() => void handleTogglePause(habit)}
         />
         <button
           type="button"
