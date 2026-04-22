@@ -33,6 +33,7 @@ describe("target goal", () => {
         source_type: "habit",
         numeric_value: 175,
         unit: "lbs",
+        goal_ids: [],
         created_at: "",
         updated_at: "",
       },
@@ -65,6 +66,7 @@ describe("accumulation goal", () => {
         source_type: "habit",
         numeric_value: 42,
         unit: "pages",
+        goal_ids: [],
         created_at: "",
         updated_at: "",
       },
@@ -75,6 +77,7 @@ describe("accumulation goal", () => {
         source_type: "habit",
         numeric_value: 38,
         unit: "pages",
+        goal_ids: [],
         created_at: "",
         updated_at: "",
       },
@@ -85,6 +88,7 @@ describe("accumulation goal", () => {
         source_type: "habit",
         numeric_value: 100,
         unit: "pages",
+        goal_ids: [],
         created_at: "",
         updated_at: "",
       },
@@ -117,6 +121,7 @@ describe("limit goal", () => {
         source_type: "habit",
         numeric_value: 84,
         unit: "USD",
+        goal_ids: [],
         created_at: "",
         updated_at: "",
       },
@@ -127,6 +132,7 @@ describe("limit goal", () => {
         source_type: "habit",
         numeric_value: 120,
         unit: "USD",
+        goal_ids: [],
         created_at: "",
         updated_at: "",
       },
@@ -136,7 +142,7 @@ describe("limit goal", () => {
 
     expect(result.current_value).toBe(204);
     expect(result.is_on_track).toBe(true);
-    expect(result.percentage).toBe(34);
+    expect(result.percentage).toBe(66); // remaining budget: (1 - 204/600) * 100
   });
 
   it("marks off track when over limit", () => {
@@ -157,6 +163,7 @@ describe("limit goal", () => {
       source_type: "habit" as const,
       numeric_value: 100,
       unit: "USD",
+      goal_ids: [] as string[],
       created_at: "",
       updated_at: "",
     }));

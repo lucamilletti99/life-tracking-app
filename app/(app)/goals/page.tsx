@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { GoalCard } from "@/components/goals/GoalCard";
@@ -8,9 +8,12 @@ import { GoalForm } from "@/components/goals/GoalForm";
 import { TopBar } from "@/components/layout/TopBar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { calculateGoalProgress } from "@/lib/goal-calculations";
+import { getServiceContext } from "@/lib/services/context";
 import { goalsService } from "@/lib/services/goals";
+import { habitsService } from "@/lib/services/habits";
 import { logsService } from "@/lib/services/logs";
-import type { Goal, LogEntry } from "@/lib/types";
+import { todosService } from "@/lib/services/todos";
+import type { Goal, HabitGoalLink, LogEntry, TodoGoalLink } from "@/lib/types";
 
 const goalExamples = [
   {
@@ -31,6 +34,8 @@ export default function GoalsPage() {
   const router = useRouter();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [habitGoalLinks, setHabitGoalLinks] = useState<HabitGoalLink[]>([]);
+  const [todoGoalLinks, setTodoGoalLinks] = useState<TodoGoalLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
@@ -41,18 +46,25 @@ export default function GoalsPage() {
     async function load() {
       setLoading(true);
       try {
-        const [goalRows, logRows] = await Promise.all([
-          goalsService.list(),
-          logsService.list(),
+        const ctx = await getServiceContext();
+        const [goalRows, logRows, habitLinks, todoLinks] = await Promise.all([
+          goalsService.list(ctx),
+          logsService.list(ctx),
+          habitsService.listGoalLinks(ctx),
+          todosService.listGoalLinks(ctx),
         ]);
         if (!cancelled) {
           setGoals(goalRows);
           setLogs(logRows);
+          setHabitGoalLinks(habitLinks);
+          setTodoGoalLinks(todoLinks);
         }
       } catch (error) {
         if (!cancelled) {
           setGoals([]);
           setLogs([]);
+          setHabitGoalLinks([]);
+          setTodoGoalLinks([]);
           console.error(error);
         }
       } finally {
@@ -67,28 +79,52 @@ export default function GoalsPage() {
     };
   }, []);
 
-  const progressList = useMemo(
-    () => goals.map((g) => calculateGoalProgress(g, logs)),
-    [goals, logs],
-  );
+  const progressList = useMemo(() => {
+    const goalSourceMap = new Map<string, string[]>();
+    for (const link of habitGoalLinks) {
+      const ids = goalSourceMap.get(link.goal_id) ?? [];
+      ids.push(link.habit_id);
+      goalSourceMap.set(link.goal_id, ids);
+    }
+    for (const link of todoGoalLinks) {
+      const ids = goalSourceMap.get(link.goal_id) ?? [];
+      ids.push(link.todo_id);
+      goalSourceMap.set(link.goal_id, ids);
+    }
+    return goals.map((g) => calculateGoalProgress(g, logs, goalSourceMap.get(g.id)));
+  }, [goals, logs, habitGoalLinks, todoGoalLinks]);
+
+  const refreshGoals = useCallback(async () => {
+    const ctx = await getServiceContext();
+    const refreshed = await goalsService.list(ctx);
+    setGoals(refreshed);
+  }, []);
 
   async function handleCreate(
     data: Omit<Goal, "id" | "created_at" | "updated_at" | "current_value_cache">,
   ) {
-    await goalsService.create(data);
-    const refreshed = await goalsService.list();
-    setGoals(refreshed);
+    const ctx = await getServiceContext();
+    await goalsService.create(ctx, data);
+    await refreshGoals();
     setOpen(false);
   }
 
-  async function handleAutoSave(
+  const handleAutoSave = useCallback(async (
     id: string,
     data: Omit<Goal, "id" | "created_at" | "updated_at" | "current_value_cache">,
-  ) {
-    await goalsService.update(id, data);
-    const refreshed = await goalsService.list();
-    setGoals(refreshed);
-  }
+  ) => {
+    const ctx = await getServiceContext();
+    await goalsService.update(ctx, id, data);
+    await refreshGoals();
+  }, [refreshGoals]);
+
+  const handleEditingGoalAutoSave = useCallback(
+    async (data: Omit<Goal, "id" | "created_at" | "updated_at" | "current_value_cache">) => {
+      if (!editingGoalId) return;
+      await handleAutoSave(editingGoalId, data);
+    },
+    [editingGoalId, handleAutoSave],
+  );
 
   const editingGoal = editingGoalId ? goals.find((g) => g.id === editingGoalId) : undefined;
 
@@ -162,8 +198,7 @@ export default function GoalsPage() {
             <GoalForm
               goalId={editingGoal.id}
               initial={editingGoal}
-              onSubmit={() => setEditingGoalId(null)}
-              onAutoSave={(data) => handleAutoSave(editingGoal.id, data)}
+              onAutoSave={handleEditingGoalAutoSave}
               onCancel={() => setEditingGoalId(null)}
             />
           )}

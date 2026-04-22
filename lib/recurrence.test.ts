@@ -71,6 +71,17 @@ describe("times_per_month recurrence", () => {
     expect(dates[2]).toBe("2026-04-16");
     expect(dates[3]).toBe("2026-04-23");
   });
+
+  it("does not duplicate dates when requested occurrences exceed range", () => {
+    const habit: Habit = {
+      ...base,
+      recurrence_type: "times_per_month",
+      recurrence_config: { times_per_period: 5 },
+    };
+
+    const dates = getOccurrencesInRange(habit, "2026-04-10", "2026-04-10");
+    expect(dates).toEqual(["2026-04-10"]);
+  });
 });
 
 describe("day_of_month recurrence", () => {

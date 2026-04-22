@@ -21,7 +21,13 @@ function datesInRange(start: string, end: string): Date[] {
 
 function selectEvenly(all: Date[], n: number): string[] {
   const period = all.length;
-  const indices = Array.from({ length: n }, (_, i) => Math.floor((i * period) / n));
+  const count = Math.min(Math.max(0, n), period);
+  if (count === 0) return [];
+
+  const indices = Array.from(
+    { length: count },
+    (_, i) => Math.floor((i * period) / count),
+  );
   return indices.filter((idx) => idx < period).map((idx) => isoDate(all[idx]));
 }
 

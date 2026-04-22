@@ -9,6 +9,7 @@ import { GoalProgressBar } from "@/components/goals/GoalProgressBar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { calculateGoalProgress } from "@/lib/goal-calculations";
+import { getServiceContext } from "@/lib/services/context";
 import { goalsService } from "@/lib/services/goals";
 import { habitsService } from "@/lib/services/habits";
 import { logsService } from "@/lib/services/logs";
@@ -21,6 +22,7 @@ export default function GoalDetailPage() {
 
   const [goal, setGoal] = useState<Goal | undefined>(undefined);
   const [linkedHabits, setLinkedHabits] = useState<Habit[]>([]);
+  const [linkedSourceIds, setLinkedSourceIds] = useState<string[] | undefined>(undefined);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,7 +32,8 @@ export default function GoalDetailPage() {
     async function load() {
       setLoading(true);
       try {
-        const fetchedGoal = await goalsService.get(id);
+        const ctx = await getServiceContext();
+        const fetchedGoal = await goalsService.get(ctx, id);
         if (!fetchedGoal) {
           if (!cancelled) {
             setGoal(undefined);
@@ -40,19 +43,21 @@ export default function GoalDetailPage() {
           return;
         }
 
-        const [habitIds, allLogs, rangedLogs] = await Promise.all([
-          goalsService.getLinkedHabitIds(id),
-          logsService.list(),
-          logsService.forDateRange(fetchedGoal.start_date, fetchedGoal.end_date),
+        const [habitIds, todoIds, allLogs, rangedLogs] = await Promise.all([
+          goalsService.getLinkedHabitIds(ctx, id),
+          goalsService.getLinkedTodoIds(ctx, id),
+          logsService.list(ctx),
+          logsService.forDateRange(ctx, fetchedGoal.start_date, fetchedGoal.end_date),
         ]);
 
         const habitRows = (
-          await Promise.all(habitIds.map((hid) => habitsService.get(hid)))
+          await Promise.all(habitIds.map((hid) => habitsService.get(ctx, hid)))
         ).filter((h): h is Habit => Boolean(h));
 
         if (!cancelled) {
           setGoal(fetchedGoal);
           setLinkedHabits(habitRows);
+          setLinkedSourceIds([...habitIds, ...todoIds]);
           setLogs(
             [...rangedLogs].sort((a, b) =>
               b.entry_datetime.localeCompare(a.entry_datetime),
@@ -102,7 +107,7 @@ export default function GoalDetailPage() {
     return <div className="p-6 text-neutral-400">Goal not found.</div>;
   }
 
-  const progress = calculateGoalProgress(goal, logs);
+  const progress = calculateGoalProgress(goal, logs, linkedSourceIds);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">

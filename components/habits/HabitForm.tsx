@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,8 +17,8 @@ import { RecurrenceBuilder } from "./RecurrenceBuilder";
 interface HabitFormProps {
   habitId?: string;
   initial?: Partial<Habit>;
-  onSubmit: (data: Omit<Habit, "id" | "created_at" | "updated_at">) => void;
-  onAutoSave?: (data: Omit<Habit, "id" | "created_at" | "updated_at">) => void;
+  onSubmit?: (data: Omit<Habit, "id" | "created_at" | "updated_at">) => void;
+  onAutoSave?: (data: Omit<Habit, "id" | "created_at" | "updated_at">) => Promise<void> | void;
   onCancel: () => void;
 }
 
@@ -37,40 +37,103 @@ export function HabitForm({ habitId, initial, onSubmit, onAutoSave, onCancel }: 
   const [autoCreate, setAutoCreate] = useState(
     initial?.auto_create_calendar_instances ?? true,
   );
+  const [saving, setSaving] = useState(false);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedSnapshotRef = useRef<string | null>(null);
   const isEditMode = Boolean(habitId);
 
-  useEffect(() => {
-    if (!isEditMode || !onAutoSave) return;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      onAutoSave({
-        title,
-        tracking_type: trackingType,
-        unit: unit || undefined,
-        recurrence_type: recurrenceType,
-        recurrence_config: recurrenceConfig,
-        auto_create_calendar_instances: autoCreate,
-        is_active: true,
-      });
-    }, 600);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [title, trackingType, unit, recurrenceType, recurrenceConfig, autoCreate]);
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    onSubmit({
+  const buildPayload = useCallback(
+    (): Omit<Habit, "id" | "created_at" | "updated_at"> => ({
       title,
       tracking_type: trackingType,
       unit: unit || undefined,
       recurrence_type: recurrenceType,
       recurrence_config: recurrenceConfig,
       auto_create_calendar_instances: autoCreate,
+      is_active: initial?.is_active ?? true,
+    }),
+    [
+      title,
+      trackingType,
+      unit,
+      recurrenceType,
+      recurrenceConfig,
+      autoCreate,
+      initial?.is_active,
+    ],
+  );
+
+  const isComplete = useCallback(
+    (payload: Omit<Habit, "id" | "created_at" | "updated_at">) =>
+      Boolean(payload.title.trim()),
+    [],
+  );
+
+  const flushAutoSave = useCallback(async () => {
+    if (!isEditMode || !onAutoSave) return;
+
+    const payload = buildPayload();
+    if (!isComplete(payload)) return;
+
+    const snapshot = JSON.stringify(payload);
+    if (lastSavedSnapshotRef.current === snapshot) return;
+
+    await onAutoSave(payload);
+    lastSavedSnapshotRef.current = snapshot;
+  }, [buildPayload, isComplete, isEditMode, onAutoSave]);
+
+  useEffect(() => {
+    if (!isEditMode || !onAutoSave) return;
+
+    const payload = buildPayload();
+    if (!isComplete(payload)) return;
+
+    const snapshot = JSON.stringify(payload);
+    if (lastSavedSnapshotRef.current === null) {
+      lastSavedSnapshotRef.current = snapshot;
+      return;
+    }
+    if (snapshot === lastSavedSnapshotRef.current) return;
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      void flushAutoSave().catch((error) => {
+        console.error(error);
+      });
+    }, 600);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [buildPayload, flushAutoSave, isComplete, isEditMode, onAutoSave]);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (isEditMode) {
+      void flushAutoSave().catch((error) => {
+        console.error(error);
+      });
+      return;
+    }
+
+    onSubmit?.({
+      ...buildPayload(),
       is_active: true,
     });
+  }
+
+  async function handleDone() {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    setSaving(true);
+    try {
+      await flushAutoSave();
+      onCancel();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -145,8 +208,8 @@ export function HabitForm({ habitId, initial, onSubmit, onAutoSave, onCancel }: 
 
       {isEditMode && (
         <div className="flex justify-end pt-2">
-          <Button type="button" variant="ghost" onClick={onCancel}>
-            Done
+          <Button type="button" variant="ghost" onClick={() => void handleDone()} disabled={saving}>
+            {saving ? "Saving..." : "Done"}
           </Button>
         </div>
       )}

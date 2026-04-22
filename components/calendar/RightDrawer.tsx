@@ -369,7 +369,7 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
     }
   }
 
-  async function handleLog(value: number, note?: string) {
+  async function handleLog(value: number, note?: string, goalIds?: string[]) {
     setSubmitting(true);
     try {
       const ctx = await getServiceContext();
@@ -381,6 +381,7 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
         numeric_value: value,
         unit: habit?.unit,
         note,
+        goal_ids: goalIds,
       });
       if (item.kind === "todo") {
         await todosService.update(ctx, item.id, { status: "complete" });

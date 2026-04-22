@@ -24,13 +24,27 @@ export function DayView({ date, items, onItemClick }: DayViewProps) {
         dayItems.map((item) => (
           <button
             key={item.id}
+            type="button"
             onClick={() => onItemClick(item)}
-            className="rounded-xl border border-neutral-200 bg-white px-4 py-3 text-left hover:shadow-sm"
+            className="rounded-xl border border-neutral-200 bg-white px-4 py-3 text-left transition-all hover:border-neutral-300 hover:shadow-sm"
           >
             <p className="text-sm font-medium text-neutral-900">{item.title}</p>
-            <p className="text-xs text-neutral-400">
-              {item.start_datetime.slice(11, 16)} - {item.end_datetime.slice(11, 16)}
-            </p>
+            <div className="mt-0.5 flex items-center justify-between gap-4">
+              <p className="text-xs text-neutral-400">
+                {item.start_datetime.slice(11, 16)} - {item.end_datetime.slice(11, 16)}
+              </p>
+              <span
+                className={`text-[11px] font-medium capitalize ${
+                  item.status === "complete"
+                    ? "text-emerald-600"
+                    : item.status === "skipped"
+                      ? "text-neutral-500"
+                      : "text-neutral-400"
+                }`}
+              >
+                {item.status}
+              </span>
+            </div>
           </button>
         ))
       )}

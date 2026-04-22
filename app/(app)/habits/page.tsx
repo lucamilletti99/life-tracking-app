@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { HabitCard } from "@/components/habits/HabitCard";
 import { HabitForm } from "@/components/habits/HabitForm";
 import { TopBar } from "@/components/layout/TopBar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { groupHabitsByGoal } from "@/lib/habit-grouping";
+import { getServiceContext } from "@/lib/services/context";
 import { goalsService } from "@/lib/services/goals";
 import { habitsService } from "@/lib/services/habits";
 import type { Goal, Habit, HabitGoalLink } from "@/lib/types";
@@ -40,10 +41,11 @@ export default function HabitsPage() {
     async function load() {
       setLoading(true);
       try {
+        const ctx = await getServiceContext();
         const [habitRows, goalRows, linkRows] = await Promise.all([
-          habitsService.list(),
-          goalsService.list(),
-          habitsService.listGoalLinks(),
+          habitsService.list(ctx),
+          goalsService.list(ctx),
+          habitsService.listGoalLinks(ctx),
         ]);
 
         if (!cancelled) {
@@ -70,25 +72,39 @@ export default function HabitsPage() {
     };
   }, []);
 
-  async function refreshHabitsData() {
+  const refreshHabitsData = useCallback(async () => {
+    const ctx = await getServiceContext();
     const [habitRows, linkRows] = await Promise.all([
-      habitsService.list(),
-      habitsService.listGoalLinks(),
+      habitsService.list(ctx),
+      habitsService.listGoalLinks(ctx),
     ]);
     setHabits(habitRows);
     setLinks(linkRows);
-  }
+  }, []);
 
   async function handleCreate(data: Omit<Habit, "id" | "created_at" | "updated_at">) {
-    await habitsService.create(data);
+    const ctx = await getServiceContext();
+    await habitsService.create(ctx, data);
     await refreshHabitsData();
     setOpen(false);
   }
 
-  async function handleAutoSaveHabit(id: string, data: Omit<Habit, "id" | "created_at" | "updated_at">) {
-    await habitsService.update(id, data);
+  const handleAutoSaveHabit = useCallback(async (
+    id: string,
+    data: Omit<Habit, "id" | "created_at" | "updated_at">,
+  ) => {
+    const ctx = await getServiceContext();
+    await habitsService.update(ctx, id, data);
     await refreshHabitsData();
-  }
+  }, [refreshHabitsData]);
+
+  const handleEditingHabitAutoSave = useCallback(
+    async (data: Omit<Habit, "id" | "created_at" | "updated_at">) => {
+      if (!editingHabitId) return;
+      await handleAutoSaveHabit(editingHabitId, data);
+    },
+    [editingHabitId, handleAutoSaveHabit],
+  );
 
   const grouped = useMemo(
     () => groupHabitsByGoal({ goals, habits, links }),
@@ -196,8 +212,7 @@ export default function HabitsPage() {
             <HabitForm
               habitId={editingHabit.id}
               initial={editingHabit}
-              onSubmit={() => setEditingHabitId(null)}
-              onAutoSave={(data) => handleAutoSaveHabit(editingHabit.id, data)}
+              onAutoSave={handleEditingHabitAutoSave}
               onCancel={() => setEditingHabitId(null)}
             />
           )}

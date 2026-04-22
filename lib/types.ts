@@ -90,6 +90,7 @@ export interface LogEntry {
   numeric_value?: number;
   unit?: string;
   note?: string;
+  goal_ids: string[];
   created_at: string;
   updated_at: string;
 }

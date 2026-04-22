@@ -3,22 +3,25 @@ import { toast } from "sonner";
 import { supabase } from "@/supabase/client";
 
 import type { Goal } from "../types";
+import type { ServiceContext } from "./context";
 
 export const goalsService = {
-  list: async (): Promise<Goal[]> => {
+  list: async (ctx: ServiceContext): Promise<Goal[]> => {
     const { data, error } = await supabase
       .from("goals")
       .select("*")
+      .eq("user_id", ctx.userId)
       .eq("is_active", true)
       .order("created_at");
     if (error) throw error;
     return (data ?? []) as Goal[];
   },
 
-  get: async (id: string): Promise<Goal | undefined> => {
+  get: async (ctx: ServiceContext, id: string): Promise<Goal | undefined> => {
     const { data, error } = await supabase
       .from("goals")
       .select("*")
+      .eq("user_id", ctx.userId)
       .eq("id", id)
       .maybeSingle();
     if (error) throw error;
@@ -26,12 +29,13 @@ export const goalsService = {
   },
 
   create: async (
+    ctx: ServiceContext,
     data: Omit<Goal, "id" | "created_at" | "updated_at">,
   ): Promise<Goal> => {
     try {
       const { data: row, error } = await supabase
         .from("goals")
-        .insert(data)
+        .insert({ ...data, user_id: ctx.userId })
         .select()
         .single();
       if (error) throw error;
@@ -44,11 +48,12 @@ export const goalsService = {
     }
   },
 
-  update: async (id: string, data: Partial<Goal>): Promise<Goal> => {
+  update: async (ctx: ServiceContext, id: string, data: Partial<Goal>): Promise<Goal> => {
     try {
       const { data: row, error } = await supabase
         .from("goals")
         .update({ ...data, updated_at: new Date().toISOString() })
+        .eq("user_id", ctx.userId)
         .eq("id", id)
         .select()
         .single();
@@ -62,9 +67,13 @@ export const goalsService = {
     }
   },
 
-  delete: async (id: string): Promise<void> => {
+  delete: async (ctx: ServiceContext, id: string): Promise<void> => {
     try {
-      const { error } = await supabase.from("goals").delete().eq("id", id);
+      const { error } = await supabase
+        .from("goals")
+        .delete()
+        .eq("user_id", ctx.userId)
+        .eq("id", id);
       if (error) throw error;
       console.log("[goals] delete succeeded", id);
     } catch (err) {
@@ -74,7 +83,7 @@ export const goalsService = {
     }
   },
 
-  getLinkedHabitIds: async (goalId: string): Promise<string[]> => {
+  getLinkedHabitIds: async (_ctx: ServiceContext, goalId: string): Promise<string[]> => {
     const { data, error } = await supabase
       .from("habit_goal_links")
       .select("habit_id")
@@ -83,7 +92,7 @@ export const goalsService = {
     return (data ?? []).map((r: { habit_id: string }) => r.habit_id);
   },
 
-  getLinkedTodoIds: async (goalId: string): Promise<string[]> => {
+  getLinkedTodoIds: async (_ctx: ServiceContext, goalId: string): Promise<string[]> => {
     const { data, error } = await supabase
       .from("todo_goal_links")
       .select("todo_id")
@@ -92,14 +101,14 @@ export const goalsService = {
     return (data ?? []).map((r: { todo_id: string }) => r.todo_id);
   },
 
-  linkHabit: async (goalId: string, habitId: string): Promise<void> => {
+  linkHabit: async (_ctx: ServiceContext, goalId: string, habitId: string): Promise<void> => {
     const { error } = await supabase
       .from("habit_goal_links")
       .upsert({ goal_id: goalId, habit_id: habitId });
     if (error) throw error;
   },
 
-  unlinkHabit: async (goalId: string, habitId: string): Promise<void> => {
+  unlinkHabit: async (_ctx: ServiceContext, goalId: string, habitId: string): Promise<void> => {
     const { error } = await supabase
       .from("habit_goal_links")
       .delete()
