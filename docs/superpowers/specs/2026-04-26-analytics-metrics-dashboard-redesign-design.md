@@ -60,7 +60,7 @@ Rules:
 - No top card may have a missing subordinate line in any state.
 
 ### 3.3 Trend-first content tier
-Immediately after the control tier, the main `Trend` chart becomes the first large section on the page.
+Immediately after the primary metrics tier, the main `Trend` chart becomes the first large section on the page.
 
 Below the chart, the page contains only supporting sections:
 - `Weekly review`
@@ -105,7 +105,7 @@ Rules:
 The main trend chart is the page's most valuable analytic artifact and should be treated as such.
 
 Rules:
-- Place the chart immediately below the controls.
+- Place the chart immediately below the primary metrics tier.
 - Preserve the existing summary-trend role as the main temporal view over the selected window.
 - The chart should remain the first major section users encounter after choosing a range.
 - Other sections must not visually compete with the chart for primary attention.
@@ -124,6 +124,7 @@ Rules:
 
 Responsive behavior:
 - On smaller screens, the preset pills and main controls should wrap cleanly without collapsing into a dense technical toolbar.
+- On smaller screens, the four top stat cards should wrap into a readable multi-row layout rather than compressing into a cramped single row.
 - Revealed custom date inputs should stack cleanly below the preset row on narrow viewports.
 
 ## 7. Weekly Review Section
