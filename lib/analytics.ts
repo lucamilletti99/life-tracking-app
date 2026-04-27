@@ -1,7 +1,19 @@
-import { addDays, format, parseISO, subDays } from "date-fns";
+import { clampAnalyticsRange } from "@/lib/analytics/timeframe";
+import { buildAnalyticsProgressModel } from "@/lib/analytics/progress";
+import { buildAnalyticsSummaryModel } from "@/lib/analytics/summary";
+import { computeHabitCompletionRate } from "@/lib/habit-insights";
 
-import { calculateGoalProgress } from "./goal-calculations";
-import type { Goal, Habit, HabitGoalLink, LogEntry, Todo, TodoGoalLink } from "./types";
+import type {
+  Goal,
+  Habit,
+  HabitGoalLink,
+  LogEntry,
+  Todo,
+  TodoGoalLink,
+} from "./types";
+
+export type { AnalyticsGranularity, AnalyticsControlsState } from "./analytics/types";
+export * from "./analytics/index";
 
 interface BuildAnalyticsSnapshotInput {
   goals: Goal[];
@@ -20,6 +32,16 @@ interface DailyLogPoint {
   entries: number;
 }
 
+export interface HabitStat {
+  habitId: string;
+  title: string;
+  currentStreak: number;
+  bestStreak: number;
+  completionRate7d: number;
+  completionRate30d: number;
+  completionRate90d: number;
+}
+
 interface AnalyticsTotals {
   totalGoals: number;
   totalHabits: number;
@@ -31,20 +53,17 @@ interface AnalyticsTotals {
 
 export interface AnalyticsSnapshot {
   totals: AnalyticsTotals;
-  goalProgress: ReturnType<typeof calculateGoalProgress>[];
+  goalProgress: ReturnType<typeof buildAnalyticsSummaryModel>["goalProgress"];
   dailyLogSeries: DailyLogPoint[];
 }
 
-function toDate(value: Date | string | undefined): Date {
-  if (!value) return new Date();
-  if (value instanceof Date) return value;
-  return parseISO(`${value}T00:00:00`);
+function toIsoDate(value: Date | string | undefined): string {
+  if (!value) return new Date().toISOString().slice(0, 10);
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return value;
 }
 
-function toIsoDate(value: Date): string {
-  return format(value, "yyyy-MM-dd");
-}
-
+// Backwards compatibility adapter for older analytics components/tests.
 export function buildAnalyticsSnapshot({
   goals,
   habits,
@@ -55,71 +74,73 @@ export function buildAnalyticsSnapshot({
   days = 14,
   asOf,
 }: BuildAnalyticsSnapshotInput): AnalyticsSnapshot {
-  const endDate = toDate(asOf);
-  const startDate = subDays(endDate, days - 1);
-  const startIso = toIsoDate(startDate);
-  const endIso = toIsoDate(endDate);
+  const endDate = toIsoDate(asOf);
+  const unclampedStart = new Date(`${endDate}T00:00:00`);
+  unclampedStart.setDate(unclampedStart.getDate() - (Math.max(days, 1) - 1));
 
-  const goalSourceMap = new Map<string, string[]>();
-  for (const link of habitGoalLinks) {
-    const ids = goalSourceMap.get(link.goal_id) ?? [];
-    ids.push(link.habit_id);
-    goalSourceMap.set(link.goal_id, ids);
-  }
-  for (const link of todoGoalLinks) {
-    const ids = goalSourceMap.get(link.goal_id) ?? [];
-    ids.push(link.todo_id);
-    goalSourceMap.set(link.goal_id, ids);
-  }
+  const range = clampAnalyticsRange({
+    startDate: unclampedStart.toISOString().slice(0, 10),
+    endDate,
+    minDays: 1,
+    maxDays: 730,
+  });
 
-  const goalProgress = goals.map((goal) =>
-    calculateGoalProgress(goal, logs, goalSourceMap.get(goal.id), asOf),
-  );
-  const onTrackGoals = goalProgress.filter((goal) => goal.is_on_track).length;
+  const summary = buildAnalyticsSummaryModel({
+    goals,
+    habits,
+    todos,
+    logs,
+    habitGoalLinks,
+    todoGoalLinks,
+    weeklyReviews: [],
+    range,
+    granularity: "daily",
+    comparisonEnabled: false,
+  });
 
-  const completedTodos = todos.filter((todo) => todo.status === "complete").length;
-  const todoCompletionRate =
-    todos.length === 0 ? 0 : Math.round((completedTodos / todos.length) * 100);
+  const progress = buildAnalyticsProgressModel({
+    goals,
+    habits,
+    logs,
+    habitGoalLinks,
+    range,
+    granularity: "daily",
+  });
 
-  const logsInWindow = logs.filter(
-    (log) => log.entry_date >= startIso && log.entry_date <= endIso,
-  );
-
-  const totalsByDate = new Map<string, DailyLogPoint>();
-  for (const log of logsInWindow) {
-    const existing = totalsByDate.get(log.entry_date) ?? {
-      date: log.entry_date,
-      total: 0,
-      entries: 0,
-    };
-
-    existing.total += log.numeric_value ?? 0;
-    existing.entries += 1;
-    totalsByDate.set(log.entry_date, existing);
-  }
-
-  const dailyLogSeries: DailyLogPoint[] = [];
-  for (let i = 0; i < days; i++) {
-    const day = toIsoDate(addDays(startDate, i));
-    dailyLogSeries.push(
-      totalsByDate.get(day) ?? {
-        date: day,
-        total: 0,
-        entries: 0,
-      },
-    );
-  }
+  const dailyLogSeries: DailyLogPoint[] = summary.trendSeries.map((point) => ({
+    date: point.bucketStart,
+    total: point.numericTotal,
+    entries: point.logEntries,
+  }));
 
   return {
     totals: {
-      totalGoals: goals.length,
-      totalHabits: habits.length,
-      totalTodos: todos.length,
-      onTrackGoals,
-      todoCompletionRate,
-      logsInWindow: logsInWindow.length,
+      totalGoals: summary.kpis.totalGoals,
+      totalHabits: summary.kpis.totalHabits,
+      totalTodos: summary.kpis.totalTodos,
+      onTrackGoals: summary.kpis.onTrackGoals,
+      todoCompletionRate: summary.kpis.todoCompletionRate,
+      logsInWindow: summary.kpis.logsInRange,
     },
-    goalProgress,
+    goalProgress: summary.goalProgress,
     dailyLogSeries,
   };
+}
+
+export function toLegacyHabitStats(
+  model: ReturnType<typeof buildAnalyticsProgressModel>,
+  options: {
+    logs: LogEntry[];
+    today: string;
+  },
+): HabitStat[] {
+  return model.habits.map((row) => ({
+    habitId: row.habit.id,
+    title: row.habit.title,
+    currentStreak: row.streakCurrent,
+    bestStreak: row.streakBest,
+    completionRate7d: computeHabitCompletionRate(row.habit, options.logs, options.today, 7),
+    completionRate30d: computeHabitCompletionRate(row.habit, options.logs, options.today, 30),
+    completionRate90d: computeHabitCompletionRate(row.habit, options.logs, options.today, 90),
+  }));
 }

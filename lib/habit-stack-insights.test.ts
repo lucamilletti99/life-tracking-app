@@ -12,7 +12,7 @@ const baseHabit: Omit<Habit, "id" | "title" | "recurrence_type" | "recurrence_co
   updated_at: "",
 };
 
-function habit(overrides: Partial<Habit>): Habit {
+function habit(overrides: Partial<Habit> = {}): Habit {
   return {
     ...baseHabit,
     id: "habit-1",
@@ -23,7 +23,7 @@ function habit(overrides: Partial<Habit>): Habit {
   };
 }
 
-function stack(overrides: Partial<HabitStack>): HabitStack {
+function stack(overrides: Partial<HabitStack> = {}): HabitStack {
   return {
     id: "stack-1",
     preceding_habit_id: "habit-a",
@@ -34,7 +34,7 @@ function stack(overrides: Partial<HabitStack>): HabitStack {
   };
 }
 
-function log(overrides: Partial<LogEntry>): LogEntry {
+function log(overrides: Partial<LogEntry> = {}): LogEntry {
   return {
     id: "log-1",
     entry_date: "2026-04-21",

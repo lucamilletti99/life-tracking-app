@@ -4,7 +4,7 @@ interface CompletionHeatmapPanelProps {
   heatmaps: Array<{
     habitId: string;
     title: string;
-    cells: Array<{ date: string; status: "complete" | "skipped" | "none" }>;
+    cells: Array<{ date: string; status: "complete" | "failed" | "skipped" | "none" }>;
   }>;
 }
 
@@ -12,7 +12,7 @@ export function CompletionHeatmapPanel({ heatmaps }: CompletionHeatmapPanelProps
   if (heatmaps.length === 0) {
     return (
       <div className="rounded-xl border border-neutral-200 bg-white p-4">
-        <h3 className="text-sm font-semibold text-neutral-900">Completion heatmaps</h3>
+        <h3 className="text-sm font-semibold text-neutral-900">Completion history</h3>
         <p className="mt-3 text-sm text-neutral-400">No habit data yet.</p>
       </div>
     );
@@ -20,7 +20,7 @@ export function CompletionHeatmapPanel({ heatmaps }: CompletionHeatmapPanelProps
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-4">
-      <h3 className="text-sm font-semibold text-neutral-900">Completion heatmaps</h3>
+      <h3 className="text-sm font-semibold text-neutral-900">Completion history</h3>
       <div className="mt-3 space-y-4">
         {heatmaps.slice(0, 3).map((heatmap) => (
           <div key={heatmap.habitId}>

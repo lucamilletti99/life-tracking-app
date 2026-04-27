@@ -1,4 +1,17 @@
-import { addDays, format, getDate, getDay, parseISO } from "date-fns";
+import {
+  addDays,
+  addMonths,
+  endOfMonth,
+  endOfWeek,
+  format,
+  getDate,
+  getDay,
+  isAfter,
+  isBefore,
+  parseISO,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
 
 import type { Habit } from "./types";
 
@@ -31,6 +44,46 @@ function selectEvenly(all: Date[], n: number): string[] {
   return indices.filter((idx) => idx < period).map((idx) => isoDate(all[idx]));
 }
 
+function buildPerWeekOccurrences(start: string, end: string, n: number): string[] {
+  const startDate = parseISO(start);
+  const endDate = parseISO(end);
+  const result: string[] = [];
+  let periodStart = startOfWeek(startDate, { weekStartsOn: 1 });
+
+  while (!isAfter(periodStart, endDate)) {
+    const periodEnd = endOfWeek(periodStart, { weekStartsOn: 1 });
+    const clampedStart = isBefore(periodStart, startDate) ? startDate : periodStart;
+    const clampedEnd = isAfter(periodEnd, endDate) ? endDate : periodEnd;
+
+    const weekDates = datesInRange(isoDate(clampedStart), isoDate(clampedEnd));
+    result.push(...selectEvenly(weekDates, n));
+
+    periodStart = addDays(periodEnd, 1);
+  }
+
+  return result;
+}
+
+function buildPerMonthOccurrences(start: string, end: string, n: number): string[] {
+  const startDate = parseISO(start);
+  const endDate = parseISO(end);
+  const result: string[] = [];
+  let periodStart = startOfMonth(startDate);
+
+  while (!isAfter(periodStart, endDate)) {
+    const periodEnd = endOfMonth(periodStart);
+    const clampedStart = isBefore(periodStart, startDate) ? startDate : periodStart;
+    const clampedEnd = isAfter(periodEnd, endDate) ? endDate : periodEnd;
+
+    const monthDates = datesInRange(isoDate(clampedStart), isoDate(clampedEnd));
+    result.push(...selectEvenly(monthDates, n));
+
+    periodStart = addMonths(periodStart, 1);
+  }
+
+  return result;
+}
+
 export function getOccurrencesInRange(
   habit: Habit,
   start: string,
@@ -50,12 +103,12 @@ export function getOccurrencesInRange(
 
   if (habit.recurrence_type === "times_per_week") {
     const n = cfg.times_per_period ?? 1;
-    return selectEvenly(all, n);
+    return buildPerWeekOccurrences(start, end, n);
   }
 
   if (habit.recurrence_type === "times_per_month") {
     const n = cfg.times_per_period ?? 1;
-    return selectEvenly(all, n);
+    return buildPerMonthOccurrences(start, end, n);
   }
 
   if (habit.recurrence_type === "day_of_month") {

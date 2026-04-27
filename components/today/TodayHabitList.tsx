@@ -1,7 +1,6 @@
-import { Flame } from "lucide-react";
+import { Check, CheckCircle2, Flame, Plus } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { TodayHabitItem } from "@/lib/today-snapshot";
 
 const sectionTitle: Record<string, string> = {
@@ -29,77 +28,148 @@ export function TodayHabitList({
   onQuickComplete,
   onQuickLog,
 }: TodayHabitListProps) {
+  const allItems = Object.values(groups).flat();
+  const hasAny = allItems.length > 0;
+  const dueItems = allItems.filter((item) => item.status === "due" || item.status === "failed");
+  const allDone = hasAny && dueItems.length === 0;
+  const completedTracked = allItems.filter((item) => item.status === "done").length;
+  const failedTracked = allItems.filter((item) => item.status === "failed").length;
+  const notTracked = allItems.filter((item) => item.status === "due").length;
+
   return (
-    <section className="rounded-xl border border-neutral-200 bg-white p-4">
-      <h3 className="text-sm font-semibold text-neutral-900">Habits</h3>
-      <div className="mt-4 space-y-4">
+    <section>
+      <div className="mb-6 flex items-baseline justify-between">
+        <h3 className="text-display-sm text-[24px] text-ink">Habits</h3>
+      </div>
+
+      {hasAny && (
+        <p className="mb-5 text-[11.5px] text-ink-subtle">
+          Completed {completedTracked} · Failed {failedTracked} · Not tracked {notTracked}
+        </p>
+      )}
+
+      {!hasAny && (
+        <p className="text-[13px] text-ink-subtle">Nothing scheduled for today.</p>
+      )}
+
+      {allDone && (
+        <div className="mb-6 flex items-center gap-3 rounded-xl border border-hairline bg-surface px-4 py-3.5">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-ember" strokeWidth={1.75} />
+          <div>
+            <p className="text-[13.5px] font-medium text-ink">All done for today</p>
+            <p className="text-[12px] text-ink-subtle">Nice work — your streak is safe.</p>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-8">
         {Object.entries(groups).map(([key, rows]) => {
           if (rows.length === 0) return null;
 
           return (
             <div key={key}>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                {sectionTitle[key]}
-              </p>
-              <div className="space-y-2">
-                {rows.map((row) => (
-                  <div
-                    key={row.habit.id}
-                    className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${
-                      row.stackCueFromTitles?.length
-                        ? "border-amber-300 bg-amber-50/30"
-                        : "border-neutral-100"
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-neutral-900">{row.habit.title}</p>
-                      <div className="mt-1 flex items-center gap-2">
-                        <Badge variant={row.status === "done" ? "default" : "outline"} className="text-[11px]">
-                          {row.status}
-                        </Badge>
-                        <Badge variant="secondary" className="text-[11px]">
-                          <Flame className="mr-1 h-3 w-3" /> {row.currentStreak}
-                        </Badge>
-                        {row.stackCueFromTitles?.length ? (
-                          <Badge variant="outline" className="border-amber-300 text-[11px] text-amber-700">
-                            Stack up next
-                          </Badge>
-                        ) : null}
-                      </div>
-                      {row.stackCueFromTitles?.length ? (
-                        <p className="mt-1 truncate text-xs text-amber-700">
-                          After: {row.stackCueFromTitles[0]}
-                          {row.stackCueFromTitles.length > 1
-                            ? ` +${row.stackCueFromTitles.length - 1}`
-                            : ""}
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      {row.habit.tracking_type === "boolean" ? (
-                        <Button
-                          size="sm"
-                          className="h-7"
-                          onClick={() => onQuickComplete(row.habit.id)}
-                          disabled={busyHabitId === row.habit.id || row.status === "done" || row.status === "paused"}
-                        >
-                          {busyHabitId === row.habit.id ? "Saving..." : "Complete"}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7"
-                          onClick={() => onQuickLog(row.habit.id)}
-                          disabled={busyHabitId === row.habit.id || row.status === "paused"}
-                        >
-                          Log
-                        </Button>
+              <p className="mb-3 text-eyebrow">{sectionTitle[key]}</p>
+              <ul className="divide-y divide-hairline">
+                {rows.map((row) => {
+                  const busy = busyHabitId === row.habit.id;
+                  const done = row.status === "done";
+                  const failed = row.status === "failed";
+                  const paused = row.status === "paused";
+                  const hasStackCue = Boolean(row.stackCueFromTitles?.length);
+                  const unitLabel = row.habit.unit?.trim();
+
+                  return (
+                    <li
+                      key={row.habit.id}
+                      className={cn(
+                        "group/habit flex items-center gap-4 py-3.5 transition-chrome",
+                        done && "opacity-55",
                       )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    >
+                      {/* Status indicator dot */}
+                      <div
+                        className={cn(
+                          "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-chrome",
+                          done
+                            ? "border-transparent bg-ember text-white"
+                            : failed
+                              ? "border-destructive/50 bg-destructive/10 text-destructive"
+                            : paused
+                              ? "border-hairline bg-transparent text-ink-subtle"
+                              : "border-hairline-strong bg-transparent",
+                        )}
+                      >
+                        {done && <Check className="h-3 w-3" strokeWidth={3} />}
+                      </div>
+
+                      {/* Title + meta */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p
+                            className={cn(
+                              "truncate text-[14px] text-ink",
+                              done && "line-through decoration-ink-subtle",
+                            )}
+                          >
+                            {row.habit.title}
+                          </p>
+                          {hasStackCue && (
+                            <span className="text-eyebrow text-ember">After {row.stackCueFromTitles![0]}</span>
+                          )}
+                        </div>
+                        {row.linkedGoalTitles.length > 0 && (
+                          <p className="mt-0.5 truncate text-[11px] text-ink-subtle">
+                            {row.linkedGoalTitles[0]}
+                          </p>
+                        )}
+                        <div className="mt-1 flex items-center gap-3 text-[11.5px] text-ink-subtle">
+                          {row.currentStreak > 0 && (
+                            <span className="flex items-center gap-1 text-ember">
+                              <Flame className="h-3 w-3" strokeWidth={2} />
+                              <span className="text-metric">{row.currentStreak}</span>
+                            </span>
+                          )}
+                          <span className="capitalize">{row.status}</span>
+                          {row.habit.tracking_type !== "boolean" && unitLabel && (
+                            <span>{unitLabel}</span>
+                          )}
+                          {paused && <span>paused</span>}
+                        </div>
+                      </div>
+
+                      {/* Action */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          row.habit.tracking_type === "boolean"
+                            ? onQuickComplete(row.habit.id)
+                            : onQuickLog(row.habit.id)
+                        }
+                        disabled={busy || paused || done}
+                        className={cn(
+                          "flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium transition-chrome",
+                          "disabled:cursor-not-allowed disabled:opacity-40",
+                          done
+                            ? "border-hairline text-ink-subtle"
+                            : "border-hairline bg-surface text-ink-muted hover:border-hairline-strong hover:text-ink",
+                        )}
+                      >
+                        {row.habit.tracking_type === "boolean" ? (
+                          <>
+                            <Check className="h-3 w-3" strokeWidth={2} />
+                            {busy ? "Saving" : done ? "Done" : "Complete"}
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-3 w-3" strokeWidth={2} />
+                            {unitLabel ? `Log ${unitLabel}` : "Log"}
+                          </>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           );
         })}

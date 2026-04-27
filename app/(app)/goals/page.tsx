@@ -1,19 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { GoalCard } from "@/components/goals/GoalCard";
 import { GoalForm } from "@/components/goals/GoalForm";
 import { TopBar } from "@/components/layout/TopBar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { buildGoalHabitExecutionMap } from "@/lib/goal-habit-execution";
 import { calculateGoalProgress } from "@/lib/goal-calculations";
 import { getServiceContext } from "@/lib/services/context";
 import { goalsService } from "@/lib/services/goals";
 import { habitsService } from "@/lib/services/habits";
 import { logsService } from "@/lib/services/logs";
 import { todosService } from "@/lib/services/todos";
-import type { Goal, HabitGoalLink, LogEntry, TodoGoalLink } from "@/lib/types";
+import type { Goal, Habit, HabitGoalLink, LogEntry, TodoGoalLink } from "@/lib/types";
 
 const goalExamples = [
   {
@@ -33,6 +36,7 @@ const goalExamples = [
 export default function GoalsPage() {
   const router = useRouter();
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [habits, setHabits] = useState<Habit[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [habitGoalLinks, setHabitGoalLinks] = useState<HabitGoalLink[]>([]);
   const [todoGoalLinks, setTodoGoalLinks] = useState<TodoGoalLink[]>([]);
@@ -47,14 +51,16 @@ export default function GoalsPage() {
       setLoading(true);
       try {
         const ctx = await getServiceContext();
-        const [goalRows, logRows, habitLinks, todoLinks] = await Promise.all([
+        const [goalRows, habitRows, logRows, habitLinks, todoLinks] = await Promise.all([
           goalsService.list(ctx),
+          habitsService.list(ctx),
           logsService.list(ctx),
           habitsService.listGoalLinks(ctx),
           todosService.listGoalLinks(ctx),
         ]);
         if (!cancelled) {
           setGoals(goalRows);
+          setHabits(habitRows);
           setLogs(logRows);
           setHabitGoalLinks(habitLinks);
           setTodoGoalLinks(todoLinks);
@@ -62,6 +68,7 @@ export default function GoalsPage() {
       } catch (error) {
         if (!cancelled) {
           setGoals([]);
+          setHabits([]);
           setLogs([]);
           setHabitGoalLinks([]);
           setTodoGoalLinks([]);
@@ -94,6 +101,24 @@ export default function GoalsPage() {
     return goals.map((g) => calculateGoalProgress(g, logs, goalSourceMap.get(g.id)));
   }, [goals, logs, habitGoalLinks, todoGoalLinks]);
 
+  const goalHabitExecution = useMemo(
+    () =>
+      buildGoalHabitExecutionMap({
+        goals,
+        habits,
+        habitGoalLinks,
+        logs,
+        today: format(new Date(), "yyyy-MM-dd"),
+      }),
+    [goals, habits, habitGoalLinks, logs],
+  );
+
+  useEffect(() => {
+    for (const goal of goals.slice(0, 6)) {
+      router.prefetch(`/goals/${goal.id}`);
+    }
+  }, [goals, router]);
+
   const refreshGoals = useCallback(async () => {
     const ctx = await getServiceContext();
     const refreshed = await goalsService.list(ctx);
@@ -103,19 +128,29 @@ export default function GoalsPage() {
   async function handleCreate(
     data: Omit<Goal, "id" | "created_at" | "updated_at" | "current_value_cache">,
   ) {
-    const ctx = await getServiceContext();
-    await goalsService.create(ctx, data);
-    await refreshGoals();
-    setOpen(false);
+    try {
+      const ctx = await getServiceContext();
+      await goalsService.create(ctx, data);
+      await refreshGoals();
+      setOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to create goal");
+    }
   }
 
   const handleAutoSave = useCallback(async (
     id: string,
     data: Omit<Goal, "id" | "created_at" | "updated_at" | "current_value_cache">,
   ) => {
-    const ctx = await getServiceContext();
-    await goalsService.update(ctx, id, data);
-    await refreshGoals();
+    try {
+      const ctx = await getServiceContext();
+      await goalsService.update(ctx, id, data);
+      await refreshGoals();
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to save goal");
+    }
   }, [refreshGoals]);
 
   const handleEditingGoalAutoSave = useCallback(
@@ -130,11 +165,13 @@ export default function GoalsPage() {
 
   if (loading) {
     return (
-      <div className="flex-1 p-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} className="h-28 animate-pulse rounded-xl bg-neutral-100" />
-          ))}
+      <div className="flex-1 p-8">
+        <div className="mx-auto max-w-5xl">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="h-36 animate-pulse rounded-xl bg-muted" />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -142,40 +179,47 @@ export default function GoalsPage() {
 
   return (
     <>
-      <TopBar title="Goals" onQuickAdd={() => setOpen(true)} />
-      <div className="flex-1 overflow-y-auto p-6">
-        {goals.length === 0 ? (
-          <div className="mx-auto flex max-w-3xl flex-col items-center justify-center gap-5 py-16 text-center">
-            <p className="text-sm text-neutral-400">No goals yet. Create your first goal.</p>
-            <div className="w-full rounded-xl border border-neutral-200 bg-white p-4 text-left shadow-sm">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Example goal ideas
-              </p>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                {goalExamples.map((example) => (
-                  <div
-                    key={example.title}
-                    className="rounded-lg border border-neutral-200 bg-neutral-50 p-3"
-                  >
-                    <p className="text-sm font-medium text-neutral-900">{example.title}</p>
-                    <p className="mt-1 text-xs text-neutral-500">{example.details}</p>
-                  </div>
-                ))}
+      <TopBar
+        eyebrow="Direction"
+        title="Goals"
+        subtitle="What you're moving toward. Quietly tracked, not nagged."
+        onQuickAdd={() => setOpen(true)}
+      />
+      <div className="flex-1 overflow-y-auto scroll-seamless">
+        <div className="mx-auto max-w-5xl px-8 py-8">
+          {goals.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-6 py-16 text-center">
+              <p className="text-sm text-ink-subtle">No goals yet. Create your first.</p>
+              <div className="w-full max-w-3xl rounded-xl border border-hairline bg-surface p-5 text-left">
+                <p className="text-eyebrow mb-3">Example goal ideas</p>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  {goalExamples.map((example) => (
+                    <div
+                      key={example.title}
+                      className="rounded-lg border border-hairline bg-background p-3"
+                    >
+                      <p className="text-[13px] font-medium text-ink">{example.title}</p>
+                      <p className="mt-1 text-[11px] text-ink-subtle">{example.details}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {progressList.map((p) => (
-              <GoalCard
-                key={p.goal.id}
-                progress={p}
-                onClick={() => router.push(`/goals/${p.goal.id}`)}
-                onEdit={(e) => { e.stopPropagation(); setEditingGoalId(p.goal.id); }}
-              />
-            ))}
-          </div>
-        )}
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {progressList.map((p) => (
+                <GoalCard
+                  key={p.goal.id}
+                  progress={p}
+                  onClick={() => router.push(`/goals/${p.goal.id}`)}
+                  onHover={() => router.prefetch(`/goals/${p.goal.id}`)}
+                  executionSummary={goalHabitExecution.get(p.goal.id)}
+                  onEdit={(e) => { e.stopPropagation(); setEditingGoalId(p.goal.id); }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Create dialog */}

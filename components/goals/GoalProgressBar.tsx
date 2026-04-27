@@ -11,22 +11,24 @@ export function GoalProgressBar({
   isOnTrack,
   goalType,
 }: GoalProgressBarProps) {
-  const color =
+  // Subtle, monochrome-leaning fills. Ember signals healthy progress;
+  // muted ink communicates neutral; destructive only for "limit" overreach.
+  const tone =
     goalType === "limit"
       ? percentage > 80
-        ? "bg-red-500"
+        ? "bg-destructive"
         : percentage > 60
-          ? "bg-amber-400"
-          : "bg-emerald-500"
+          ? "bg-ember"
+          : "bg-ink"
       : isOnTrack
-        ? "bg-emerald-500"
-        : "bg-amber-400";
+        ? "bg-ember"
+        : "bg-ink-subtle";
 
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
+    <div className="h-[6px] w-full overflow-hidden rounded-full bg-hairline">
       <div
-        className={cn("h-full rounded-full transition-all", color)}
-        style={{ width: `${percentage}%` }}
+        className={cn("h-full rounded-full transition-smooth", tone)}
+        style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
       />
     </div>
   );

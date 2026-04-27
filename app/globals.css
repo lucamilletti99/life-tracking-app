@@ -7,9 +7,23 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-operator: var(--surface-operator);
+  --color-shell: var(--shell);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-accent-ember: var(--accent-ember);
+  --color-accent-ember-soft: var(--accent-ember-soft);
+
+  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-geist-sans);
+  --font-display: var(--font-geist-sans);
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,92 +53,294 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+
+  --radius-sm: calc(var(--radius) * 0.55);
+  --radius-md: calc(var(--radius) * 0.75);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-xl: calc(var(--radius) * 1.35);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  --shadow-soft: 0 1px 0 rgba(10, 10, 10, 0.04), 0 10px 24px rgba(10, 10, 10, 0.06);
+  --shadow-lifted: 0 1px 0 rgba(10, 10, 10, 0.05), 0 18px 44px -18px rgba(10, 10, 10, 0.18);
+
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-smooth: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* ------------------------------------------------------------------ */
+/* Light theme — warm paper, deep ink, single ember accent             */
+/* ------------------------------------------------------------------ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Canvas — deeper warm paper so white surfaces lift off the page */
+  --background: oklch(0.955 0.007 85);     /* warm paper canvas */
+  --surface: oklch(1 0 0);                 /* card surface — crisp white */
+  --surface-elevated: oklch(0.995 0.003 85);
+  --surface-operator: oklch(0.985 0.004 85);
+  --shell: oklch(0.978 0.004 85);
+  --foreground: oklch(0.16 0.012 80);      /* near-black with warm tint */
+  --ink: oklch(0.16 0.012 80);
+  --ink-muted: oklch(0.42 0.01 80);        /* darker for readability */
+  --ink-subtle: oklch(0.60 0.008 80);
+  --hairline: oklch(0.16 0.012 80 / 9%);
+  --hairline-strong: oklch(0.16 0.012 80 / 16%);
+
+  /* Semantic (shadcn compat) */
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.18 0.008 80);
+  --primary-foreground: oklch(0.98 0.004 85);
+  --secondary: oklch(0.96 0.005 80);
+  --secondary-foreground: oklch(0.25 0.008 80);
+  --muted: oklch(0.96 0.005 80);
+  --muted-foreground: var(--ink-muted);
+  --accent: oklch(0.95 0.006 80);
+  --accent-foreground: oklch(0.22 0.008 80);
+  --destructive: oklch(0.55 0.22 25);
+  --border: var(--hairline);
+  --input: var(--hairline-strong);
+  --ring: oklch(0.55 0.08 45);
+
+  /* Accent — warm ember (copper/amber) */
+  --accent-ember: oklch(0.62 0.14 45);
+  --accent-ember-soft: oklch(0.62 0.14 45 / 12%);
+
+  /* Data viz */
+  --chart-1: oklch(0.22 0.01 80);
+  --chart-2: oklch(0.42 0.02 80);
+  --chart-3: oklch(0.60 0.05 45);
+  --chart-4: oklch(0.74 0.04 80);
+  --chart-5: oklch(0.86 0.02 80);
+
+  --radius: 0.875rem;
+
+  /* Sidebar */
+  --sidebar: oklch(0.99 0.003 85);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.97 0.005 80);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--ring);
 }
 
+/* ------------------------------------------------------------------ */
+/* Dark theme — deep graphite, parchment ink, muted ember              */
+/* ------------------------------------------------------------------ */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: oklch(0.135 0.005 270);
+  --surface: oklch(0.175 0.006 270);
+  --surface-elevated: oklch(0.215 0.007 270);
+  --surface-operator: oklch(0.195 0.008 270);
+  --shell: oklch(0.16 0.006 270);
+  --foreground: oklch(0.96 0.003 85);
+  --ink: oklch(0.96 0.003 85);
+  --ink-muted: oklch(0.68 0.006 85);
+  --ink-subtle: oklch(0.48 0.006 85);
+  --hairline: oklch(1 0 0 / 8%);
+  --hairline-strong: oklch(1 0 0 / 14%);
+
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface-elevated);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.95 0.004 85);
+  --primary-foreground: oklch(0.15 0.005 270);
+  --secondary: oklch(0.24 0.007 270);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.22 0.007 270);
+  --muted-foreground: var(--ink-muted);
+  --accent: oklch(0.24 0.007 270);
+  --accent-foreground: var(--foreground);
+  --destructive: oklch(0.68 0.18 22);
+  --border: var(--hairline);
+  --input: var(--hairline-strong);
+  --ring: oklch(0.68 0.12 45);
+
+  --accent-ember: oklch(0.76 0.14 55);
+  --accent-ember-soft: oklch(0.76 0.14 55 / 14%);
+
+  --chart-1: oklch(0.95 0.004 85);
+  --chart-2: oklch(0.72 0.005 85);
+  --chart-3: oklch(0.76 0.14 55);
+  --chart-4: oklch(0.48 0.008 85);
+  --chart-5: oklch(0.32 0.006 270);
+
+  --sidebar: oklch(0.145 0.005 270);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.22 0.007 270);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--ring);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    @apply font-sans antialiased;
+    font-feature-settings: "ss01", "cv11";
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground;
+    font-synthesis-weight: none;
   }
-  html {
-    @apply font-sans;
+
+  /* Quiet scrollbars — Apple / Cosmos style */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--hairline-strong) transparent;
   }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--hairline-strong);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--ink-subtle);
+    background-clip: content-box;
+  }
+
+  /* Editorial typography defaults */
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
+    font-weight: 500;
+  }
+
+  /* Selection */
+  ::selection {
+    background: var(--accent-ember-soft);
+    color: var(--ink);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* iOS safe area insets (notch / Dynamic Island / home bar)            */
+/* Used by BottomTabBar, app layout, and fixed headers.                */
+/* ------------------------------------------------------------------ */
+:root {
+  --safe-top:    env(safe-area-inset-top,    0px);
+  --safe-right:  env(safe-area-inset-right,  0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left,   0px);
+}
+
+@layer utilities {
+  /* Hairline border helpers */
+  .hairline { border-color: var(--hairline); }
+  .hairline-strong { border-color: var(--hairline-strong); }
+
+  /* Display text treatments */
+  .text-display {
+    font-weight: 500;
+    letter-spacing: -0.035em;
+    line-height: 1;
+  }
+  .text-display-sm {
+    font-weight: 500;
+    letter-spacing: -0.025em;
+    line-height: 1.05;
+  }
+
+  /* Eyebrow label — small caps, editorial */
+  .text-eyebrow {
+    font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-subtle);
+    font-weight: 500;
+  }
+
+  /* Number / metric */
+  .text-metric {
+    font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+    font-feature-settings: "tnum", "zero";
+    letter-spacing: -0.01em;
+  }
+
+  /* Subtle top-fade for fixed headers on scroll */
+  .fade-top {
+    mask-image: linear-gradient(to bottom, black 0, black calc(100% - 24px), transparent 100%);
+  }
+
+  /* Seamless scroll container — no scrollbar gutter jitter, smooth */
+  .scroll-seamless {
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scroll-behavior: smooth;
+    scrollbar-gutter: stable;
+  }
+
+  /* Surface treatments */
+  .surface-card {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+  }
+  .surface-card-elevated {
+    background: var(--surface-elevated);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+  }
+  .surface-operator {
+    background: var(--surface-operator);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+  }
+  .surface-shell {
+    background: var(--shell);
+    border-color: var(--hairline);
+  }
+
+  /* Ember accent utilities */
+  .text-ember { color: var(--accent-ember); }
+  .bg-ember { background-color: var(--accent-ember); }
+  .bg-ember-soft { background-color: var(--accent-ember-soft); }
+  .border-ember { border-color: var(--accent-ember); }
+
+  /* Motion primitives */
+  .transition-smooth {
+    transition: all 260ms var(--ease-out-expo);
+  }
+  .transition-chrome {
+    transition: background-color 180ms var(--ease-out-expo),
+                color 180ms var(--ease-out-expo),
+                border-color 180ms var(--ease-out-expo),
+                box-shadow 220ms var(--ease-out-expo),
+                transform 220ms var(--ease-out-expo);
+  }
+
+  /* Safe-area padding helpers — use these on fixed/sticky elements near edges */
+  .pt-safe  { padding-top:    max(env(safe-area-inset-top),    0px); }
+  .pb-safe  { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+  .pl-safe  { padding-left:   max(env(safe-area-inset-left),   0px); }
+  .pr-safe  { padding-right:  max(env(safe-area-inset-right),  0px); }
+  .px-safe  { padding-left:   max(env(safe-area-inset-left),   0px);
+               padding-right:  max(env(safe-area-inset-right),  0px); }
+
+  /* Bottom clearance for content above the floating tab bar (20px bar + 12px gap + 24px icon row = 56px) */
+  .pb-tab-bar { padding-bottom: calc(72px + max(env(safe-area-inset-bottom), 16px)); }
 }

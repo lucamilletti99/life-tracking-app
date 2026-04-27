@@ -1,21 +1,6 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-
-import { supabaseAnonKey, supabaseUrl } from "./config";
-
-export async function getSupabaseServerClient() {
-  const cookieStore = await cookies();
-
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options);
-        });
-      },
-    },
-  });
-}
+// This file contained a server-side Supabase client (createServerClient) that
+// relied on next/headers cookies() — incompatible with output: 'export'.
+//
+// It is intentionally unused in the static-export / Capacitor build.
+// All Supabase access goes through supabase/client.ts (browser client).
+export {};

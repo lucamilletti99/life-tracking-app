@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildGoalTrajectory, calculateGoalProgress } from "./goal-calculations";
+import {
+  buildGoalTrajectory,
+  buildGoalTrajectoryMessage,
+  calculateGoalProgress,
+} from "./goal-calculations";
 import type { Goal, LogEntry } from "./types";
 
 const base = {
@@ -138,11 +142,14 @@ describe("limit goal", () => {
       },
     ];
 
-    const result = calculateGoalProgress(goal, logs);
+    const inProgress = calculateGoalProgress(goal, logs, undefined, "2026-04-18");
+    const afterEnd = calculateGoalProgress(goal, logs, undefined, "2026-04-21");
 
-    expect(result.current_value).toBe(204);
-    expect(result.is_on_track).toBe(true);
-    expect(result.percentage).toBe(66); // remaining budget: (1 - 204/600) * 100
+    expect(inProgress.current_value).toBe(204);
+    expect(inProgress.is_on_track).toBe(true);
+    expect(inProgress.percentage).toBe(66); // remaining budget: (1 - 204/600) * 100
+    expect(inProgress.is_completed).toBe(false);
+    expect(afterEnd.is_completed).toBe(true);
   });
 
   it("marks off track when over limit", () => {
@@ -171,6 +178,26 @@ describe("limit goal", () => {
     const result = calculateGoalProgress(goal, logs);
 
     expect(result.is_on_track).toBe(false);
+    expect(result.is_completed).toBe(false);
+  });
+
+  it("does not mark limit goals completed until the goal period ends", () => {
+    const goal: Goal = {
+      ...base,
+      id: "g3",
+      title: "Spend < $600/week",
+      goal_type: "limit",
+      unit: "USD",
+      target_value: 600,
+      start_date: "2026-04-14",
+      end_date: "2026-04-20",
+    };
+
+    const inProgress = calculateGoalProgress(goal, [], undefined, "2026-04-18");
+    const afterEnd = calculateGoalProgress(goal, [], undefined, "2026-04-21");
+
+    expect(inProgress.is_completed).toBe(false);
+    expect(afterEnd.is_completed).toBe(true);
   });
 });
 
@@ -243,5 +270,129 @@ describe("goal trajectory", () => {
     const trajectory = buildGoalTrajectory(goal, logs, "2026-04-10");
     expect(trajectory.paceLabel).toBe("behind");
     expect(trajectory.projectedEndValue).toBeGreaterThan(goal.target_value);
+  });
+
+  it("returns compounding-in-progress messaging when behind but trend is improving", () => {
+    const goal: Goal = {
+      ...base,
+      id: "g-acc-improving",
+      title: "Read 200 pages",
+      goal_type: "accumulation",
+      unit: "pages",
+      target_value: 200,
+      start_date: "2026-04-01",
+      end_date: "2026-04-20",
+    };
+
+    const logs: LogEntry[] = [
+      {
+        id: "l1",
+        entry_date: "2026-04-10",
+        entry_datetime: "2026-04-10T10:00:00Z",
+        source_type: "habit",
+        numeric_value: 15,
+        unit: "pages",
+        created_at: "",
+        updated_at: "",
+      },
+      {
+        id: "l2",
+        entry_date: "2026-04-11",
+        entry_datetime: "2026-04-11T10:00:00Z",
+        source_type: "habit",
+        numeric_value: 25,
+        unit: "pages",
+        created_at: "",
+        updated_at: "",
+      },
+      {
+        id: "l3",
+        entry_date: "2026-04-12",
+        entry_datetime: "2026-04-12T10:00:00Z",
+        source_type: "habit",
+        numeric_value: 30,
+        unit: "pages",
+        created_at: "",
+        updated_at: "",
+      },
+    ];
+
+    const trajectory = buildGoalTrajectory(goal, logs, "2026-04-12");
+    const message = buildGoalTrajectoryMessage(goal, trajectory);
+
+    expect(trajectory.paceLabel).toBe("behind");
+    expect(message.title).toContain("Compounding in progress");
+  });
+
+  it("returns projected-date messaging when pace is on track", () => {
+    const goal: Goal = {
+      ...base,
+      id: "g-acc-on-track",
+      title: "Read 100 pages",
+      goal_type: "accumulation",
+      unit: "pages",
+      target_value: 100,
+      start_date: "2026-04-01",
+      end_date: "2026-04-10",
+    };
+
+    const logs: LogEntry[] = [
+      {
+        id: "l1",
+        entry_date: "2026-04-01",
+        entry_datetime: "2026-04-01T10:00:00Z",
+        source_type: "habit",
+        numeric_value: 10,
+        unit: "pages",
+        created_at: "",
+        updated_at: "",
+      },
+      {
+        id: "l2",
+        entry_date: "2026-04-02",
+        entry_datetime: "2026-04-02T10:00:00Z",
+        source_type: "habit",
+        numeric_value: 10,
+        unit: "pages",
+        created_at: "",
+        updated_at: "",
+      },
+      {
+        id: "l3",
+        entry_date: "2026-04-03",
+        entry_datetime: "2026-04-03T10:00:00Z",
+        source_type: "habit",
+        numeric_value: 10,
+        unit: "pages",
+        created_at: "",
+        updated_at: "",
+      },
+      {
+        id: "l4",
+        entry_date: "2026-04-04",
+        entry_datetime: "2026-04-04T10:00:00Z",
+        source_type: "habit",
+        numeric_value: 10,
+        unit: "pages",
+        created_at: "",
+        updated_at: "",
+      },
+      {
+        id: "l5",
+        entry_date: "2026-04-05",
+        entry_datetime: "2026-04-05T10:00:00Z",
+        source_type: "habit",
+        numeric_value: 10,
+        unit: "pages",
+        created_at: "",
+        updated_at: "",
+      },
+    ];
+
+    const trajectory = buildGoalTrajectory(goal, logs, "2026-04-05");
+    const message = buildGoalTrajectoryMessage(goal, trajectory);
+
+    expect(trajectory.paceLabel).toBe("on_track");
+    expect(message.detail).toContain("At current pace");
   });
 });

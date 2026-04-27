@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { format, isSameDay, parseISO } from "date-fns";
 import { CheckCircle, SkipForward, X } from "lucide-react";
 
+import { useIsMobile } from "@/hooks/useIsMobile";
+
 import { LogForm } from "@/components/logs/LogForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,27 +35,49 @@ export function RightDrawer({
   onRefresh,
   onItemSelect,
 }: RightDrawerProps) {
+  const isMobile = useIsMobile();
+
   if (!drawerState) return null;
 
-  if (drawerState.mode === "day") {
-    return (
+  // On mobile, render a bottom sheet with a backdrop.
+  // On desktop, keep the existing side panel behaviour.
+  const content =
+    drawerState.mode === "day" ? (
       <DayDrawer
         date={drawerState.date}
         allItems={allItems}
         onClose={onClose}
         onRefresh={onRefresh}
         onItemSelect={onItemSelect}
+        isMobile={isMobile}
       />
+    ) : (
+      <ItemDrawer
+        item={drawerState.item}
+        onClose={onClose}
+        onRefresh={onRefresh}
+        isMobile={isMobile}
+      />
+    );
+
+  if (isMobile) {
+    return (
+      <>
+        {/* Backdrop */}
+        <div
+          className="fixed inset-0 z-40 bg-ink/30 backdrop-blur-sm"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+        {/* Bottom sheet */}
+        <div className="fixed inset-x-0 bottom-0 z-50 animate-in slide-in-from-bottom duration-300">
+          {content}
+        </div>
+      </>
     );
   }
 
-  return (
-    <ItemDrawer
-      item={drawerState.item}
-      onClose={onClose}
-      onRefresh={onRefresh}
-    />
-  );
+  return content;
 }
 
 // --- Day Drawer ---
@@ -64,9 +88,10 @@ interface DayDrawerProps {
   onClose: () => void;
   onRefresh: () => void;
   onItemSelect: (item: CalendarItem) => void;
+  isMobile?: boolean;
 }
 
-function DayDrawer({ date, allItems, onClose, onRefresh, onItemSelect }: DayDrawerProps) {
+function DayDrawer({ date, allItems, onClose, onRefresh, onItemSelect, isMobile }: DayDrawerProps) {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [submitting, setSubmitting] = useState<string | null>(null);
@@ -74,6 +99,13 @@ function DayDrawer({ date, allItems, onClose, onRefresh, onItemSelect }: DayDraw
   const dayItems = allItems
     .filter((item) => !item.all_day && isSameDay(parseISO(item.start_datetime), date))
     .sort((a, b) => a.start_datetime.localeCompare(b.start_datetime));
+  const habitLinkedTodos = dayItems.filter(
+    (item) => item.kind === "todo" && Boolean(item.source_habit_id),
+  );
+  // Exclude habit-linked todos from the main list — they already appear in the tile section above.
+  const mainListItems = dayItems.filter(
+    (item) => !(item.kind === "todo" && Boolean(item.source_habit_id)),
+  );
 
   const completedCount = dayItems.filter((i) => i.status === "complete").length;
   const dateStr = format(date, "yyyy-MM-dd");
@@ -117,7 +149,7 @@ function DayDrawer({ date, allItems, onClose, onRefresh, onItemSelect }: DayDraw
           source_type: "habit",
           source_id: item.source_habit_id,
           numeric_value: 1,
-          unit: undefined,
+          unit: item.unit,
           note: undefined,
         });
       }
@@ -136,21 +168,13 @@ function DayDrawer({ date, allItems, onClose, onRefresh, onItemSelect }: DayDraw
       if (item.kind === "todo") {
         await todosService.update(ctx, item.id, { status: "skipped" });
       } else if (item.source_habit_id) {
-        const habit = await habitsService.get(ctx, item.source_habit_id);
-        if (habit?.minimum_version) {
-          const proceed = window.confirm(
-            `Try the 2-minute version first: ${habit.minimum_version}\n\nSkip anyway?`,
-          );
-          if (!proceed) return;
-        }
-
         await logsService.create(ctx, {
           entry_date: dateStr,
           entry_datetime: new Date().toISOString(),
           source_type: "habit",
           source_id: item.source_habit_id,
           numeric_value: 0,
-          unit: undefined,
+          unit: item.unit,
           note: SKIPPED_LOG_NOTE,
         });
       }
@@ -162,62 +186,120 @@ function DayDrawer({ date, allItems, onClose, onRefresh, onItemSelect }: DayDraw
     }
   }
 
+  const sheetClass = isMobile
+    ? "surface-card-elevated flex max-h-[80dvh] flex-col rounded-t-2xl border-t border-hairline shadow-[var(--shadow-lifted)] pb-safe"
+    : "surface-card-elevated flex h-full w-[360px] flex-col border-l border-hairline shadow-[var(--shadow-lifted)]";
+
   return (
-    <aside className="flex h-full w-80 flex-col border-l border-neutral-200 bg-white">
-      <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
+    <aside className={sheetClass}>
+      {/* Drag handle — mobile only */}
+      {isMobile && (
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="h-1 w-10 rounded-full bg-hairline-strong" aria-hidden />
+        </div>
+      )}
+      <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
         <div>
-          <p className="text-sm font-semibold text-neutral-900">
-            {format(date, "EEEE, MMM d")}
+          <p className="text-eyebrow">{format(date, "EEEE")}</p>
+          <p className="mt-0.5 text-[15px] font-medium text-ink">
+            {format(date, "MMMM d")}
           </p>
           {dayItems.length > 0 && (
-            <p className="text-xs text-neutral-400">
+            <p className="mt-0.5 text-[11px] text-ink-subtle">
               {completedCount} / {dayItems.length} done
             </p>
           )}
         </div>
-        <button onClick={onClose} className="rounded p-1 hover:bg-neutral-100">
-          <X className="h-4 w-4 text-neutral-500" />
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded p-1 text-ink-subtle transition-chrome hover:bg-muted hover:text-ink"
+        >
+          <X className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
+      <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-4 scroll-seamless">
+        {habitLinkedTodos.length > 0 && (
+          <div>
+            <p className="text-eyebrow mb-2">Habit-linked todos</p>
+            <div className="grid grid-cols-1 gap-2">
+              {habitLinkedTodos.map((item) => (
+                <div
+                  key={`habit-tile-${item.id}`}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-hairline bg-surface px-3 py-2 text-left transition-chrome hover:border-hairline-strong hover:bg-surface-elevated"
+                >
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left"
+                    onClick={() => onItemSelect(item)}
+                  >
+                    <p className="truncate text-[12.5px] text-ink">{item.title}</p>
+                    <p className="text-[10.5px] capitalize text-ink-subtle">
+                      {item.status}
+                      {item.requires_numeric_log && item.unit ? ` · ${item.unit}` : ""}
+                    </p>
+                  </button>
+                  {item.status === "pending" && (
+                    <Button
+                      size="sm"
+                      variant={item.requires_numeric_log ? "outline" : "ghost"}
+                      className="h-6 px-2 text-[10.5px]"
+                      onClick={() => {
+                        if (item.requires_numeric_log) {
+                          onItemSelect(item);
+                          return;
+                        }
+                        void handleComplete(item);
+                      }}
+                      disabled={submitting === item.id}
+                    >
+                      {submitting === item.id
+                        ? "..."
+                        : item.requires_numeric_log
+                          ? "Add"
+                          : "Done"}
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {dayItems.length === 0 ? (
-          <p className="text-sm text-neutral-400">
+          <p className="text-sm text-ink-subtle">
             Nothing scheduled — click a time slot to add.
           </p>
-        ) : (
-          <div className="space-y-2">
-            {dayItems.map((item) => (
-              <div
-                key={item.id}
-                className="rounded-lg border border-neutral-100 bg-neutral-50 p-3"
-              >
+        ) : mainListItems.length === 0 ? null : (
+          <ul className="divide-y divide-hairline border-y border-hairline">
+            {mainListItems.map((item) => (
+              <li key={item.id} className="py-3">
                 <div className="flex items-start justify-between gap-2">
                   <button
                     type="button"
-                    className="text-left text-sm font-medium text-neutral-800 hover:underline"
+                    className="text-left text-[13.5px] text-ink transition-chrome hover:text-ember"
                     onClick={() => onItemSelect(item)}
                   >
                     {item.title}
                   </button>
-                  <Badge
-                    variant={
+                  <span
+                    className={`shrink-0 text-[10px] capitalize ${
                       item.status === "complete"
-                        ? "default"
+                        ? "text-ember"
                         : item.status === "skipped"
-                          ? "secondary"
-                          : "outline"
-                    }
-                    className="shrink-0 text-[10px]"
+                          ? "text-ink-subtle"
+                          : "text-ink-muted"
+                    }`}
                   >
                     {item.status}
-                  </Badge>
+                  </span>
                 </div>
-                <p className="mt-0.5 text-xs text-neutral-400">
+                <p className="text-metric mt-0.5 text-[11px] text-ink-subtle">
                   {format(parseISO(item.start_datetime), "h:mm a")}
                 </p>
                 {item.linked_goal_ids.length > 0 && (
-                  <p className="mt-1 truncate text-[11px] text-neutral-500">
+                  <p className="mt-1 truncate text-[11px] text-ink-muted">
                     Goals: {item.linked_goal_ids
                       .map((goalId) => goals.find((goal) => goal.id === goalId)?.title ?? goalId)
                       .join(", ")}
@@ -229,16 +311,16 @@ function DayDrawer({ date, allItems, onClose, onRefresh, onItemSelect }: DayDraw
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-6 px-2 text-xs"
+                        className="h-6 px-2 text-[11px]"
                         onClick={() => onItemSelect(item)}
                       >
-                        Log
+                        {item.unit ? `Log ${item.unit}` : "Log"}
                       </Button>
                     ) : (
                       <>
                         <Button
                           size="sm"
-                          className="h-6 gap-1 px-2 text-xs"
+                          className="h-6 gap-1 px-2 text-[11px]"
                           onClick={() => handleComplete(item)}
                           disabled={submitting === item.id}
                         >
@@ -248,7 +330,7 @@ function DayDrawer({ date, allItems, onClose, onRefresh, onItemSelect }: DayDraw
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-6 gap-1 px-2 text-xs"
+                          className="h-6 gap-1 px-2 text-[11px]"
                           onClick={() => handleSkip(item)}
                           disabled={submitting === item.id}
                         >
@@ -259,33 +341,31 @@ function DayDrawer({ date, allItems, onClose, onRefresh, onItemSelect }: DayDraw
                     )}
                   </div>
                 )}
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
 
         {goals.length > 0 && (
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
-              Active goals
-            </p>
-            <div className="space-y-2">
+            <p className="text-eyebrow mb-2">Active goals</p>
+            <ul className="divide-y divide-hairline border-y border-hairline">
               {goals.map((goal) => {
                 const progress = calculateGoalProgress(goal, logs);
                 return (
-                  <div key={goal.id} className="flex items-center justify-between gap-2">
-                    <p className="truncate text-xs text-neutral-700">{goal.title}</p>
+                  <li key={goal.id} className="flex items-center justify-between gap-2 py-2">
+                    <p className="truncate text-[12.5px] text-ink">{goal.title}</p>
                     <span
-                      className={`shrink-0 text-xs font-medium ${
-                        progress.is_on_track ? "text-emerald-600" : "text-rose-500"
+                      className={`text-metric shrink-0 text-[11px] ${
+                        progress.is_on_track ? "text-ember" : "text-destructive"
                       }`}
                     >
                       {progress.percentage}%
                     </span>
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           </div>
         )}
       </div>
@@ -299,9 +379,10 @@ interface ItemDrawerProps {
   item: CalendarItem;
   onClose: () => void;
   onRefresh: () => void;
+  isMobile?: boolean;
 }
 
-function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
+function ItemDrawer({ item, onClose, onRefresh, isMobile }: ItemDrawerProps) {
   const [habit, setHabit] = useState<Habit | undefined>(undefined);
   const [goalTitles, setGoalTitles] = useState<string[]>([]);
   const [stackCueFromTitles, setStackCueFromTitles] = useState<string[]>([]);
@@ -378,10 +459,11 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
       }
 
       try {
+        const ctx = await getServiceContext();
         const [stacks, allHabits, dayLogs] = await Promise.all([
-          habitStacksService.list(),
-          habitsService.list(),
-          logsService.forDateRange(selectedDate, selectedDate),
+          habitStacksService.list(ctx),
+          habitsService.list(ctx),
+          logsService.forDateRange(ctx, selectedDate, selectedDate),
         ]);
         if (cancelled) return;
 
@@ -424,7 +506,7 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
           source_type: "habit",
           source_id: item.source_habit_id,
           numeric_value: 1,
-          unit: habit?.unit,
+          unit: habit?.unit ?? item.unit,
           note: undefined,
         });
       }
@@ -444,20 +526,13 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
       if (item.kind === "todo") {
         await todosService.update(ctx, item.id, { status: "skipped" });
       } else if (item.source_habit_id) {
-        if (habit?.minimum_version) {
-          const proceed = window.confirm(
-            `Try the 2-minute version first: ${habit.minimum_version}\n\nSkip anyway?`,
-          );
-          if (!proceed) return;
-        }
-
         await logsService.create(ctx, {
           entry_date: selectedDate,
           entry_datetime: new Date().toISOString(),
           source_type: "habit",
           source_id: item.source_habit_id,
           numeric_value: 0,
-          unit: habit?.unit,
+          unit: habit?.unit ?? item.unit,
           note: SKIPPED_LOG_NOTE,
         });
       }
@@ -480,7 +555,7 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
         source_type: item.kind === "habit_occurrence" ? "habit" : "todo",
         source_id: item.source_habit_id ?? item.id,
         numeric_value: value,
-        unit: habit?.unit,
+        unit: habit?.unit ?? item.unit,
         note,
         goal_ids: goalIds,
       });
@@ -496,29 +571,46 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
     }
   }
 
+  const sheetClass = isMobile
+    ? "surface-card-elevated flex max-h-[80dvh] flex-col rounded-t-2xl border-t border-hairline shadow-[var(--shadow-lifted)] pb-safe"
+    : "surface-card-elevated flex h-full w-[360px] flex-col border-l border-hairline shadow-[var(--shadow-lifted)]";
+
   return (
-    <aside className="flex h-full w-80 flex-col border-l border-neutral-200 bg-white">
-      <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
-        <span className="text-sm font-semibold text-neutral-900">{item.title}</span>
-        <button onClick={onClose} className="rounded p-1 hover:bg-neutral-100">
-          <X className="h-4 w-4 text-neutral-500" />
+    <aside className={sheetClass}>
+      {isMobile && (
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="h-1 w-10 rounded-full bg-hairline-strong" aria-hidden />
+        </div>
+      )}
+      <div className="flex items-start justify-between gap-2 border-b border-hairline px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-eyebrow">
+            {item.kind === "habit_occurrence" ? "Habit" : "Todo"}
+          </p>
+          <p className="mt-0.5 truncate text-[15px] font-medium text-ink">
+            {item.title}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="shrink-0 rounded p-1 text-ink-subtle transition-chrome hover:bg-muted hover:text-ink"
+        >
+          <X className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 scroll-seamless">
         <div className="flex items-center gap-2">
-          <Badge variant={item.kind === "habit_occurrence" ? "secondary" : "outline"}>
-            {item.kind === "habit_occurrence" ? "Habit" : "Todo"}
-          </Badge>
+          <span className="text-metric text-[11px] text-ink-muted">
+            {format(parseISO(item.start_datetime), "h:mm a")} —{" "}
+            {format(parseISO(item.end_datetime), "h:mm a")}
+          </span>
           {item.never_miss_twice_alert && (
-            <Badge variant="outline" className="border-amber-300 text-amber-700">
+            <Badge variant="outline" className="border-ember bg-ember-soft text-ember">
               Never miss twice
             </Badge>
           )}
-          <span className="text-xs text-neutral-400">
-            {format(parseISO(item.start_datetime), "h:mm a")} -{" "}
-            {format(parseISO(item.end_datetime), "h:mm a")}
-          </span>
         </div>
 
         {goalTitles.length > 0 && (
@@ -532,39 +624,44 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
         )}
 
         {stackCueFromTitles.length > 0 && (
-          <div className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
+          <div className="rounded-md border border-ember bg-ember-soft px-2.5 py-1.5 text-[11.5px] text-ember">
             Stack up next after: {stackCueFromTitles[0]}
             {stackCueFromTitles.length > 1 ? ` (+${stackCueFromTitles.length - 1})` : ""}
           </div>
         )}
 
         {habit && (
-          <div className="rounded-md border border-neutral-200 bg-neutral-50 p-2 text-xs text-neutral-600">
-            {habit.identity_statement && (
-              <p className="truncate">{habit.identity_statement}</p>
-            )}
-            {(habit.cue_time || habit.cue_context || habit.cue_location) && (
-              <p className="mt-1 truncate">
-                Cue: {habit.cue_time ? `${habit.cue_time} · ` : ""}
-                {habit.cue_context ? `${habit.cue_context} · ` : ""}
-                {habit.cue_location ?? ""}
+          <div className="rounded-md border border-hairline bg-muted/40 p-3 text-[11.5px] text-ink-muted">
+            {(habit.cue_time || habit.cue_location) && (
+              <p className="truncate">
+                <span className="text-ink-subtle">Time &amp; place: </span>
+                {habit.cue_time ? `${habit.cue_time.slice(0, 5)}` : "Any time"}
+                {habit.cue_location ? ` · ${habit.cue_location}` : ""}
               </p>
             )}
-            {habit.implementation_intention && (
-              <p className="mt-1 line-clamp-2">{habit.implementation_intention}</p>
-            )}
-            {habit.temptation_bundle && (
-              <p className="mt-1 line-clamp-2">Bundle: {habit.temptation_bundle}</p>
+            <p className="mt-1.5">
+              <span className="text-ink-subtle">Duration: </span>
+              {habit.recurrence_config.duration_minutes ?? 30} min
+            </p>
+            {habit.cue_context && (
+              <p className="mt-1 line-clamp-2">
+                <span className="text-ink-subtle">Context: </span>
+                {habit.cue_context}
+              </p>
             )}
           </div>
         )}
 
         {item.requires_numeric_log && (
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
-              Log value
+            <p className="text-eyebrow mb-2">
+              Log value{habit?.unit ?? item.unit ? ` (${habit?.unit ?? item.unit})` : ""}
             </p>
-            <LogForm item={item} unit={habit?.unit} onSubmit={handleLog} />
+            <LogForm
+              trackingType={habit?.tracking_type ?? "measurement"}
+              unit={habit?.unit ?? item.unit}
+              onSubmit={handleLog}
+            />
           </div>
         )}
 
@@ -592,10 +689,10 @@ function ItemDrawer({ item, onClose, onRefresh }: ItemDrawerProps) {
         )}
 
         {item.status === "complete" && (
-          <p className="text-sm text-emerald-600">Completed</p>
+          <p className="text-[13px] text-ember">Completed</p>
         )}
         {item.status === "skipped" && (
-          <p className="text-sm text-neutral-500">Skipped</p>
+          <p className="text-[13px] text-ink-subtle">Skipped</p>
         )}
       </div>
     </aside>

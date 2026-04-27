@@ -44,10 +44,11 @@ export function AnalyticsControls({
   const presetOptions: AnalyticsPresetKey[] = [...presets, "custom"];
 
   return (
-    <section className="surface-card p-4" aria-label="Analytics controls">
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-eyebrow">Range</span>
+    <section className="surface-card px-4 py-3" aria-label="Analytics controls">
+      {/* Single control row */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-eyebrow mr-1">Range</span>
           {presetOptions.map((preset) => (
             <Button
               key={preset}
@@ -61,66 +62,70 @@ export function AnalyticsControls({
           ))}
         </div>
 
-        {controls.presetKey === "custom" && (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <label className="text-[12px] text-ink-muted">
-              Start
-              <input
-                className="mt-1 w-full rounded-md border border-hairline bg-surface px-2.5 py-2 text-[13px] text-ink"
-                type="date"
-                value={controls.startDate}
-                min={minDate}
-                max={controls.endDate}
-                onChange={(event) => onRangeChange(event.target.value, controls.endDate)}
-              />
-            </label>
+        <div className="mx-1 h-4 w-px bg-hairline" aria-hidden="true" />
 
-            <label className="text-[12px] text-ink-muted">
-              End
-              <input
-                className="mt-1 w-full rounded-md border border-hairline bg-surface px-2.5 py-2 text-[13px] text-ink"
-                type="date"
-                value={controls.endDate}
-                min={controls.startDate}
-                max={new Date().toISOString().slice(0, 10)}
-                onChange={(event) => onRangeChange(controls.startDate, event.target.value)}
-              />
-            </label>
-          </div>
-        )}
+        <select
+          aria-label="Granularity"
+          className="rounded-md border border-hairline bg-surface px-2.5 py-1.5 text-[12px] text-ink"
+          value={controls.granularity}
+          onChange={(event) =>
+            onGranularityChange(event.target.value as AnalyticsControlsState["granularity"])
+          }
+        >
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
 
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="text-[12px] text-ink-muted">
-              Granularity
-              <select
-                className="mt-1 w-full rounded-md border border-hairline bg-surface px-2.5 py-2 text-[13px] text-ink"
-                value={controls.granularity}
-                onChange={(event) =>
-                  onGranularityChange(event.target.value as AnalyticsControlsState["granularity"])
-                }
-              >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-            </label>
+        <label className="flex items-center gap-1.5 text-[12px] text-ink-muted">
+          <input
+            type="checkbox"
+            checked={controls.comparisonEnabled}
+            onChange={(event) => onComparisonToggle(event.target.checked)}
+          />
+          Compare previous period
+        </label>
 
-            <label className="flex items-center gap-2 pt-4 text-[12px] text-ink-muted">
-              <input
-                type="checkbox"
-                checked={controls.comparisonEnabled}
-                onChange={(event) => onComparisonToggle(event.target.checked)}
-              />
-              Compare previous period
-            </label>
-          </div>
-
-          <Button type="button" size="sm" variant="outline" onClick={onRefresh} disabled={refreshing}>
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </Button>
-        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="ml-auto"
+          onClick={onRefresh}
+          disabled={refreshing}
+        >
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </Button>
       </div>
+
+      {/* Custom date inputs — only visible in Custom mode */}
+      {controls.presetKey === "custom" && (
+        <div className="mt-3 grid grid-cols-1 gap-3 border-t border-hairline pt-3 md:grid-cols-2">
+          <label className="text-[12px] text-ink-muted">
+            Start
+            <input
+              className="mt-1 w-full rounded-md border border-hairline bg-surface px-2.5 py-2 text-[12px] text-ink"
+              type="date"
+              value={controls.startDate}
+              min={minDate}
+              max={controls.endDate}
+              onChange={(event) => onRangeChange(event.target.value, controls.endDate)}
+            />
+          </label>
+
+          <label className="text-[12px] text-ink-muted">
+            End
+            <input
+              className="mt-1 w-full rounded-md border border-hairline bg-surface px-2.5 py-2 text-[12px] text-ink"
+              type="date"
+              value={controls.endDate}
+              min={controls.startDate}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(event) => onRangeChange(controls.startDate, event.target.value)}
+            />
+          </label>
+        </div>
+      )}
     </section>
   );
 }

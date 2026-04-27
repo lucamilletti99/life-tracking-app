@@ -14,6 +14,11 @@ interface CalendarItemProps {
   draggable?: boolean;
 }
 
+/**
+ * Subtle, monochrome chip. The "kind" of item is communicated by a left
+ * accent bar — ember for habits, muted ink for todos — rather than a saturated
+ * background, which keeps the calendar grid calm.
+ */
 export function CalendarItemChip({
   item,
   onClick,
@@ -24,6 +29,7 @@ export function CalendarItemChip({
   const isHabit = item.kind === "habit_occurrence";
   const isDone = item.status === "complete";
   const isSkipped = item.status === "skipped";
+  const isAlert = Boolean(item.never_miss_twice_alert);
   const showQuickComplete = Boolean(
     onQuickComplete && item.status === "pending" && !item.requires_numeric_log,
   );
@@ -43,25 +49,37 @@ export function CalendarItemChip({
       ref={setNodeRef}
       style={{ ...style, ...dragStyle, opacity: isDragging ? 0.4 : 1 }}
       className={cn(
-        "absolute left-0.5 right-0.5 flex items-start gap-1 overflow-hidden rounded-md px-1 py-1 text-left text-xs font-medium transition-colors",
-        isHabit
-          ? "border border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100"
-          : "border border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100",
-        item.never_miss_twice_alert && "border-amber-400 bg-amber-50 text-amber-900",
-        isDone && "line-through opacity-50",
-        isSkipped && "border-dashed opacity-60",
+        "group/item absolute left-1 right-1 flex items-start gap-1 overflow-hidden rounded-md border pl-2 pr-1 py-1 text-left text-[11.5px] font-medium transition-chrome",
+        "border-hairline bg-surface text-ink shadow-[var(--shadow-soft)] hover:border-hairline-strong",
+        isAlert && "border-ember bg-ember-soft",
+        isDone && "line-through opacity-55",
+        isSkipped && "border-dashed opacity-55",
       )}
     >
+      {/* Left accent rail */}
+      <span
+        aria-hidden
+        className={cn(
+          "absolute left-0 top-1 bottom-1 w-[2px] rounded-r-full",
+          isAlert ? "bg-ember" : isHabit ? "bg-ember/70" : "bg-ink-subtle",
+        )}
+      />
+
       <button
         type="button"
         onClick={() => onClick(item)}
         className={cn(
-          "min-w-0 flex-1 truncate text-left",
+          // Minimum 44px touch target height on mobile (Apple HIG)
+          "min-w-0 flex-1 truncate pl-1 text-left",
+          "min-h-[44px] md:min-h-0",
           draggable && !isHabit && "cursor-grab active:cursor-grabbing",
         )}
         {...(draggable ? { ...attributes, ...listeners } : {})}
       >
-        <span className="truncate">{item.title}</span>
+        <span className="truncate">
+          {item.title}
+          {item.requires_numeric_log && item.unit ? ` · ${item.unit}` : ""}
+        </span>
       </button>
 
       {showQuickComplete && (
@@ -69,7 +87,8 @@ export function CalendarItemChip({
           type="button"
           size="icon"
           variant="ghost"
-          className="h-4 w-4 shrink-0 p-0 text-current"
+          // Larger touch target on mobile
+          className="h-4 w-4 shrink-0 p-0 text-ink-muted hover:text-ink md:h-4 md:w-4 [&]:min-h-[44px] [&]:min-w-[44px] md:[&]:min-h-0 md:[&]:min-w-0"
           onClick={(event) => {
             event.stopPropagation();
             onQuickComplete?.(item);

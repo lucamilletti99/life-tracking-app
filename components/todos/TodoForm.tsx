@@ -41,8 +41,8 @@ export function TodoForm({ initial, onSubmit, onCancel }: TodoFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <div className="space-y-1.5">
         <Label>Title</Label>
         <Input
           value={title}
@@ -53,13 +53,13 @@ export function TodoForm({ initial, onSubmit, onCancel }: TodoFormProps) {
         />
       </div>
 
-      <div>
+      <div className="space-y-1.5">
         <Label>Date</Label>
         <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
       </div>
 
-      <div className="flex gap-3">
-        <div className="flex-1">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
           <Label>Start time</Label>
           <Input
             type="time"
@@ -68,7 +68,7 @@ export function TodoForm({ initial, onSubmit, onCancel }: TodoFormProps) {
             required
           />
         </div>
-        <div className="flex-1">
+        <div className="space-y-1.5">
           <Label>End time</Label>
           <Input
             type="time"
@@ -79,7 +79,7 @@ export function TodoForm({ initial, onSubmit, onCancel }: TodoFormProps) {
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="flex justify-end gap-2 pt-3">
         <Button type="button" variant="ghost" onClick={onCancel}>
           Cancel
         </Button>

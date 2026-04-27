@@ -25,14 +25,14 @@ export function AnalyticsSummaryHeader({ summary, controls }: AnalyticsSummaryHe
         title="Analytics"
         subtitle="A clearer view of consistency, pace, and execution volume."
       />
-      <div className="px-8 pt-6">
+      <div className="mx-auto max-w-6xl px-8 pt-5">
         <AnalyticsControls {...controls} />
 
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryMetricCard
             label="Balanced score"
             value={`${summary.balancedScore}`}
-            subline={comparison ? formatScoreDelta(comparison.deltaBalancedScore) : "out of 100"}
+            subline={comparison ? formatScoreDelta(comparison.deltaBalancedScore, " pts") : "out of 100"}
             emphasized
             progressValue={summary.balancedScore}
           />
@@ -40,19 +40,19 @@ export function AnalyticsSummaryHeader({ summary, controls }: AnalyticsSummaryHe
             label="Habit consistency"
             value={`${summary.habitConsistencyScore}%`}
             subline={
-              comparison ? formatScoreDelta(comparison.deltaHabitConsistencyScore) : "this period"
+              comparison ? formatScoreDelta(comparison.deltaHabitConsistencyScore, "pp") : "this period"
             }
           />
           <SummaryMetricCard
             label="Goal pace"
             value={`${summary.goalPaceScore}%`}
-            subline={comparison ? formatScoreDelta(comparison.deltaGoalPaceScore) : "this period"}
+            subline={comparison ? formatScoreDelta(comparison.deltaGoalPaceScore, "pp") : "this period"}
           />
           <SummaryMetricCard
             label="Execution volume"
             value={`${summary.executionVolumeScore}%`}
             subline={
-              comparison ? formatScoreDelta(comparison.deltaExecutionVolumeScore) : "this period"
+              comparison ? formatScoreDelta(comparison.deltaExecutionVolumeScore, "pp") : "this period"
             }
           />
         </div>

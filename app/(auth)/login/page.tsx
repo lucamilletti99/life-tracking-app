@@ -1,18 +1,35 @@
+"use client";
+
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+
 import { LoginCard } from "@/components/auth/LoginCard";
 import { resolvePostLoginPath } from "@/lib/auth/session";
 
-interface LoginPageProps {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+function LoginContent() {
+  const searchParams = useSearchParams();
+  const nextValue = searchParams.get("next") ?? undefined;
+  const nextPath = resolvePostLoginPath(nextValue);
+  return <LoginCard nextPath={nextPath} />;
 }
 
-export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const params = await searchParams;
-  const nextValue = Array.isArray(params.next) ? params.next[0] : params.next;
-  const nextPath = resolvePostLoginPath(nextValue);
-
+export default function LoginPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-neutral-50 p-6">
-      <LoginCard nextPath={nextPath} />
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-6">
+      {/* Soft editorial backdrop — barely-there ember glow in top-right */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-60"
+        style={{
+          background:
+            "radial-gradient(circle at 80% -10%, var(--ember-soft), transparent 45%)",
+        }}
+      />
+      <div className="relative">
+        <Suspense fallback={<LoginCard nextPath="/calendar" />}>
+          <LoginContent />
+        </Suspense>
+      </div>
     </main>
   );
 }

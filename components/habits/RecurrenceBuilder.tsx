@@ -20,10 +20,10 @@ export function RecurrenceBuilder({
   onConfigChange,
 }: RecurrenceBuilderProps) {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <Label>Recurrence</Label>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="mt-0.5 flex flex-nowrap gap-2 overflow-x-auto pb-1">
         {(
           ["daily", "weekdays", "times_per_week", "times_per_month", "day_of_month"] as RecurrenceType[]
         ).map((t) => (
@@ -31,7 +31,7 @@ export function RecurrenceBuilder({
             key={t}
             type="button"
             onClick={() => onTypeChange(t)}
-            className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
+            className={`inline-flex h-8 shrink-0 items-center rounded-lg border px-3 text-xs whitespace-nowrap transition-colors ${
               type === t
                 ? "border-neutral-900 bg-neutral-900 text-white"
                 : "border-neutral-200 text-neutral-600 hover:border-neutral-400"
@@ -51,7 +51,7 @@ export function RecurrenceBuilder({
       </div>
 
       {type === "weekdays" && (
-        <div className="flex gap-1">
+        <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-1">
           {WEEKDAY_LABELS.map((label, i) => {
             const active = config.weekdays?.includes(i);
             return (
@@ -80,19 +80,18 @@ export function RecurrenceBuilder({
       )}
 
       {(type === "times_per_week" || type === "times_per_month") && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Input
             type="number"
             min={1}
             max={type === "times_per_week" ? 7 : 31}
             value={config.times_per_period ?? 3}
-            onChange={(e) =>
-              onConfigChange({
-                ...config,
-                times_per_period: parseInt(e.target.value, 10),
-              })
-            }
-            className="w-20"
+            onChange={(e) => {
+              const parsed = parseInt(e.target.value, 10);
+              if (!Number.isFinite(parsed) || parsed < 1) return;
+              onConfigChange({ ...config, times_per_period: parsed });
+            }}
+            className="w-24"
           />
           <span className="text-sm text-neutral-500">
             times per {type === "times_per_week" ? "week" : "month"}
@@ -101,20 +100,19 @@ export function RecurrenceBuilder({
       )}
 
       {type === "day_of_month" && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span className="text-sm text-neutral-500">Day</span>
           <Input
             type="number"
             min={1}
             max={31}
             value={config.day_of_month ?? 1}
-            onChange={(e) =>
-              onConfigChange({
-                ...config,
-                day_of_month: parseInt(e.target.value, 10),
-              })
-            }
-            className="w-20"
+            onChange={(e) => {
+              const parsed = parseInt(e.target.value, 10);
+              if (!Number.isFinite(parsed) || parsed < 1) return;
+              onConfigChange({ ...config, day_of_month: parsed });
+            }}
+            className="w-24"
           />
           <span className="text-sm text-neutral-500">of each month</span>
         </div>

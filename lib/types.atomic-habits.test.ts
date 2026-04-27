@@ -13,6 +13,7 @@ describe("Atomic habits type extensions", () => {
       recurrence_type: "daily",
       recurrence_config: {},
       default_target_value: 30,
+      target_direction: "at_least",
       auto_create_calendar_instances: true,
       is_active: true,
       created_at: "2026-04-21T00:00:00Z",
@@ -35,6 +36,7 @@ describe("Atomic habits type extensions", () => {
 
     expect(habit.identity_statement).toBe("I am someone who moves daily.");
     expect(habit.cue_time).toBe("07:30");
+    expect(habit.target_direction).toBe("at_least");
   });
 
   it("supports optional completion metadata on LogEntry", () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useRef, type UIEvent } from "react";
 import { format, isSameDay, parseISO } from "date-fns";
 import {
   DndContext,
@@ -11,6 +12,8 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 
+import { useIsMobile } from "@/hooks/useIsMobile";
+
 import { getDayLoad } from "@/lib/utils";
 import type { CalendarItem } from "@/lib/types";
 
@@ -21,9 +24,9 @@ const HOUR_HEIGHT = 56;
 
 const LOAD_DOT: Record<string, string> = {
   empty: "",
-  light: "bg-sky-400",
-  moderate: "bg-amber-400",
-  busy: "bg-rose-400",
+  light: "bg-ink-subtle",
+  moderate: "bg-ember",
+  busy: "bg-destructive",
 };
 
 function timeToOffset(datetime: string): number {
@@ -53,7 +56,7 @@ function DroppableSlot({ date, hour, onClick }: DroppableSlotProps) {
   return (
     <div
       ref={setNodeRef}
-      className={`absolute w-full cursor-pointer ${isOver ? "bg-blue-50/80" : "hover:bg-neutral-50/60"}`}
+      className={`absolute w-full cursor-pointer transition-chrome ${isOver ? "bg-ember-soft" : "hover:bg-muted"}`}
       style={{ top: hour * HOUR_HEIGHT, height: HOUR_HEIGHT }}
       onClick={onClick}
     />
@@ -80,9 +83,59 @@ export function WeekView({
   onReschedule,
 }: WeekViewProps) {
   const today = new Date();
+  const isMobile = useIsMobile();
+  const timeScrollRef = useRef<HTMLDivElement | null>(null);
+  const gridScrollRef = useRef<HTMLDivElement | null>(null);
+  const syncingScrollRef = useRef<"time" | "grid" | null>(null);
 
+  // On mobile we disable pointer drag-and-drop to prevent conflict with
+  // the horizontal swipe navigation on the calendar page.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: isMobile ? 9999 : 8 },
+    }),
+  );
+
+  const releaseScrollLock = useCallback((source: "time" | "grid") => {
+    requestAnimationFrame(() => {
+      if (syncingScrollRef.current === source) {
+        syncingScrollRef.current = null;
+      }
+    });
+  }, []);
+
+  const handleGridScroll = useCallback(
+    (event: UIEvent<HTMLDivElement>) => {
+      if (syncingScrollRef.current === "time") {
+        syncingScrollRef.current = null;
+        return;
+      }
+
+      const target = timeScrollRef.current;
+      if (!target) return;
+
+      syncingScrollRef.current = "grid";
+      target.scrollTop = event.currentTarget.scrollTop;
+      releaseScrollLock("grid");
+    },
+    [releaseScrollLock],
+  );
+
+  const handleTimeScroll = useCallback(
+    (event: UIEvent<HTMLDivElement>) => {
+      if (syncingScrollRef.current === "grid") {
+        syncingScrollRef.current = null;
+        return;
+      }
+
+      const target = gridScrollRef.current;
+      if (!target) return;
+
+      syncingScrollRef.current = "time";
+      target.scrollTop = event.currentTarget.scrollTop;
+      releaseScrollLock("time");
+    },
+    [releaseScrollLock],
   );
 
   function handleDragEnd(event: DragEndEvent) {
@@ -112,9 +165,17 @@ export function WeekView({
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="flex flex-1 overflow-hidden">
-        <TimeColumn />
+        <div
+          ref={timeScrollRef}
+          onScroll={handleTimeScroll}
+          className="w-14 overflow-y-auto overflow-x-hidden border-r border-hairline"
+        >
+          <TimeColumn />
+        </div>
         <div className="flex flex-1 overflow-x-auto">
           <div
+            ref={gridScrollRef}
+            onScroll={handleGridScroll}
             className="grid flex-1 overflow-y-auto"
             style={{ gridTemplateColumns: `repeat(${days.length}, minmax(120px, 1fr))` }}
           >
@@ -127,16 +188,16 @@ export function WeekView({
                   key={day.toISOString()}
                   type="button"
                   onClick={() => onDayClick(day)}
-                  className="sticky top-0 z-10 flex h-10 w-full flex-col items-center justify-center border-b border-r border-neutral-200 bg-white hover:bg-neutral-50"
+                  className="sticky top-0 z-10 flex h-12 w-full flex-col items-center justify-center border-b border-r border-hairline bg-background/92 transition-chrome supports-backdrop-filter:backdrop-blur-sm hover:bg-surface"
                 >
-                  <span className="text-[10px] uppercase tracking-wide text-neutral-400">
+                  <span className="text-eyebrow !text-[10px]">
                     {format(day, "EEE")}
                   </span>
                   <span
-                    className={`text-sm font-semibold ${
+                    className={`text-[13px] font-medium ${
                       isSameDay(day, today)
-                        ? "flex h-6 w-6 items-center justify-center rounded-full bg-neutral-900 text-white"
-                        : "text-neutral-700"
+                        ? "text-metric flex h-6 w-6 items-center justify-center rounded-full bg-ember text-white"
+                        : "text-ink"
                     }`}
                   >
                     {format(day, "d")}
@@ -157,13 +218,13 @@ export function WeekView({
               return (
                 <div
                   key={`col-${day.toISOString()}`}
-                  className="relative border-r border-neutral-100"
+                  className="relative border-r border-hairline"
                   style={{ height: `${24 * HOUR_HEIGHT}px` }}
                 >
                   {Array.from({ length: 24 }, (_, h) => (
                     <div
                       key={h}
-                      className="absolute w-full border-t border-neutral-100"
+                      className="absolute w-full border-t border-hairline"
                       style={{ top: h * HOUR_HEIGHT }}
                     />
                   ))}
@@ -183,7 +244,8 @@ export function WeekView({
                       item={item}
                       onClick={onItemClick}
                       onQuickComplete={onQuickComplete}
-                      draggable={item.kind === "todo"}
+                      // Disable drag-and-drop on mobile — swipe navigates instead
+                      draggable={item.kind === "todo" && !isMobile}
                       style={{
                         top: timeToOffset(item.start_datetime),
                         height: durationToHeight(item.start_datetime, item.end_datetime),

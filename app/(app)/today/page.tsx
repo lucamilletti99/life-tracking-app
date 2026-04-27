@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
+import { toast } from "sonner";
 
 import { LogForm } from "@/components/logs/LogForm";
 import { TopBar } from "@/components/layout/TopBar";
@@ -10,18 +11,28 @@ import { TodayHabitList } from "@/components/today/TodayHabitList";
 import { TodayHeader } from "@/components/today/TodayHeader";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { buildTodaySnapshot } from "@/lib/today-snapshot";
+import { getServiceContext } from "@/lib/services/context";
 import { goalsService } from "@/lib/services/goals";
 import { habitsService } from "@/lib/services/habits";
 import { habitStacksService } from "@/lib/services/habit-stacks";
 import { logsService } from "@/lib/services/logs";
 import { todosService } from "@/lib/services/todos";
-import type { CalendarItem, Goal, Habit, HabitGoalLink, HabitStack, LogEntry, Todo } from "@/lib/types";
+import type {
+  Goal,
+  Habit,
+  HabitGoalLink,
+  HabitStack,
+  LogEntry,
+  Todo,
+  TodoGoalLink,
+} from "@/lib/types";
 
 export default function TodayPage() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [todos, setTodos] = useState<Todo[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [links, setLinks] = useState<HabitGoalLink[]>([]);
+  const [todoLinks, setTodoLinks] = useState<TodoGoalLink[]>([]);
   const [habitStacks, setHabitStacks] = useState<HabitStack[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,13 +47,16 @@ export default function TodayPage() {
     async function load() {
       setLoading(true);
       try {
-        const [habitRows, todoRows, goalRows, linkRows, stackRows, logRows] = await Promise.all([
-          habitsService.list(),
-          todosService.list(),
-          goalsService.list(),
-          habitsService.listGoalLinks(),
-          habitStacksService.list(),
-          logsService.list(),
+        const ctx = await getServiceContext();
+        const since = format(subDays(new Date(), 365), "yyyy-MM-dd");
+        const [habitRows, todoRows, goalRows, linkRows, todoLinkRows, stackRows, logRows] = await Promise.all([
+          habitsService.list(ctx),
+          todosService.list(ctx),
+          goalsService.list(ctx),
+          habitsService.listGoalLinks(ctx),
+          todosService.listGoalLinks(ctx),
+          habitStacksService.list(ctx),
+          logsService.list(ctx, { since }),
         ]);
 
         if (!cancelled) {
@@ -50,6 +64,7 @@ export default function TodayPage() {
           setTodos(todoRows);
           setGoals(goalRows);
           setLinks(linkRows);
+          setTodoLinks(todoLinkRows);
           setHabitStacks(stackRows);
           setLogs(logRows);
         }
@@ -59,6 +74,7 @@ export default function TodayPage() {
           setTodos([]);
           setGoals([]);
           setLinks([]);
+          setTodoLinks([]);
           setHabitStacks([]);
           setLogs([]);
           console.error(error);
@@ -78,28 +94,44 @@ export default function TodayPage() {
   }, []);
 
   async function refreshData() {
-    const [habitRows, todoRows, linkRows, stackRows, logRows] = await Promise.all([
-      habitsService.list(),
-      todosService.list(),
-      habitsService.listGoalLinks(),
-      habitStacksService.list(),
-      logsService.list(),
+    const ctx = await getServiceContext();
+    const since = format(subDays(new Date(), 365), "yyyy-MM-dd");
+    const [habitRows, todoRows, linkRows, todoLinkRows, stackRows, logRows] = await Promise.all([
+      habitsService.list(ctx),
+      todosService.list(ctx),
+      habitsService.listGoalLinks(ctx),
+      todosService.listGoalLinks(ctx),
+      habitStacksService.list(ctx),
+      logsService.list(ctx, { since }),
     ]);
 
     setHabits(habitRows);
     setTodos(todoRows);
     setLinks(linkRows);
+    setTodoLinks(todoLinkRows);
     setHabitStacks(stackRows);
     setLogs(logRows);
   }
+
+  const STREAK_MILESTONES = [3, 7, 14, 21, 30, 50, 100];
 
   async function handleQuickComplete(habitId: string) {
     const habit = habits.find((row) => row.id === habitId);
     if (!habit) return;
 
+    // Capture streak before completing for milestone detection
+    const allItems = [
+      ...snapshot.habitGroups.morning,
+      ...snapshot.habitGroups.afternoon,
+      ...snapshot.habitGroups.evening,
+      ...snapshot.habitGroups.anytime,
+    ];
+    const prevStreak = allItems.find((item) => item.habit.id === habitId)?.currentStreak ?? 0;
+
     setBusyHabitId(habitId);
     try {
-      await logsService.create({
+      const ctx = await getServiceContext();
+      await logsService.create(ctx, {
         entry_date: today,
         entry_datetime: new Date().toISOString(),
         source_type: "habit",
@@ -109,8 +141,19 @@ export default function TodayPage() {
         note: undefined,
       });
       await refreshData();
+
+      const newStreak = prevStreak + 1;
+      if (STREAK_MILESTONES.includes(newStreak)) {
+        toast(`🔥 ${newStreak}-day streak!`, {
+          description: habit.title,
+          duration: 4000,
+        });
+      } else {
+        toast.success(`${habit.title} logged`, { duration: 2000 });
+      }
     } catch (error) {
       console.error(error);
+      toast.error("Failed to log habit");
     } finally {
       setBusyHabitId(null);
     }
@@ -122,7 +165,8 @@ export default function TodayPage() {
 
     setBusyHabitId(habit.id);
     try {
-      await logsService.create({
+      const ctx = await getServiceContext();
+      await logsService.create(ctx, {
         entry_date: today,
         entry_datetime: new Date().toISOString(),
         source_type: "habit",
@@ -135,6 +179,7 @@ export default function TodayPage() {
       setLoggingHabitId(null);
     } catch (error) {
       console.error(error);
+      toast.error("Failed to save log");
     } finally {
       setBusyHabitId(null);
     }
@@ -148,41 +193,40 @@ export default function TodayPage() {
         goals,
         logs,
         habitGoalLinks: links,
+        todoGoalLinks: todoLinks,
         habitStacks,
         today,
       }),
-    [goals, habitStacks, habits, links, logs, today, todos],
+    [goals, habitStacks, habits, links, logs, today, todoLinks, todos],
   );
 
   const loggingHabit = loggingHabitId ? habits.find((habit) => habit.id === loggingHabitId) : undefined;
-  const logItem: CalendarItem | null = loggingHabit
-    ? {
-        id: `habit-${loggingHabit.id}-${today}`,
-        title: loggingHabit.title,
-        start_datetime: `${today}T08:00:00`,
-        end_datetime: `${today}T08:30:00`,
-        all_day: false,
-        kind: "habit_occurrence",
-        status: "pending",
-        source_habit_id: loggingHabit.id,
-        requires_numeric_log: true,
-        linked_goal_ids: [],
-      }
-    : null;
-
   if (loading) {
     return (
-      <div className="flex-1 p-6">
-        <div className="h-24 animate-pulse rounded-xl bg-neutral-100" />
+      <div className="flex-1 p-10">
+        <div className="mx-auto max-w-5xl space-y-6">
+          <div className="h-44 animate-pulse rounded-[28px] bg-surface" />
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.95fr)]">
+            <div className="h-[28rem] animate-pulse rounded-[24px] bg-surface" />
+            <div className="space-y-6">
+              <div className="h-44 animate-pulse rounded-[24px] bg-surface" />
+              <div className="h-52 animate-pulse rounded-[24px] bg-surface" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
     <>
-      <TopBar title="Today" />
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="mx-auto max-w-5xl space-y-4">
+      <TopBar
+        title="Today"
+        eyebrow="Overview"
+        subtitle="Your rhythm, goals and the small wins that compound."
+      />
+      <div className="scroll-seamless flex-1">
+        <div className="mx-auto max-w-5xl px-8 pb-24 pt-12">
           <TodayHeader
             today={today}
             totalHabits={snapshot.summary.totalHabits}
@@ -190,33 +234,44 @@ export default function TodayPage() {
             habitsWithActiveStreak={snapshot.summary.habitsWithActiveStreak}
           />
 
-          <TodayHabitList
-            groups={snapshot.habitGroups}
-            busyHabitId={busyHabitId}
-            onQuickComplete={(habitId) => void handleQuickComplete(habitId)}
-            onQuickLog={setLoggingHabitId}
-          />
+          <div className="mt-14 grid gap-8 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.95fr)]">
+            <section className="surface-card-elevated p-6">
+              <TodayHabitList
+                groups={snapshot.habitGroups}
+                busyHabitId={busyHabitId}
+                onQuickComplete={(habitId) => void handleQuickComplete(habitId)}
+                onQuickLog={setLoggingHabitId}
+              />
+            </section>
 
-          <section className="rounded-xl border border-neutral-200 bg-white p-4">
-            <h3 className="text-sm font-semibold text-neutral-900">Today todos</h3>
-            {snapshot.todosToday.length === 0 ? (
-              <p className="mt-3 text-sm text-neutral-400">No todos scheduled for today.</p>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {snapshot.todosToday.map((todo) => (
-                  <div
-                    key={todo.id}
-                    className="flex items-center justify-between rounded-lg border border-neutral-100 p-3"
-                  >
-                    <p className="text-sm text-neutral-800">{todo.title}</p>
-                    <span className="text-xs capitalize text-neutral-500">{todo.status}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+            <div className="space-y-6">
+              <section className="surface-card p-5">
+                <div className="mb-5 flex items-baseline justify-between">
+                  <h3 className="text-display-sm text-[20px] text-ink">Todos</h3>
+                  <span className="text-eyebrow">Today</span>
+                </div>
+                {snapshot.todosToday.length === 0 ? (
+                  <p className="text-[13px] text-ink-subtle">Nothing on the list.</p>
+                ) : (
+                  <ul className="divide-y divide-hairline">
+                    {snapshot.todosToday.map((todo) => (
+                      <li
+                        key={todo.id}
+                        className="flex items-center justify-between gap-3 py-3"
+                      >
+                        <p className="truncate text-[14px] text-ink">{todo.title}</p>
+                        <span className="text-eyebrow">{todo.status}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
 
-          <TodayGoalSnapshot goalProgress={snapshot.goalProgress} />
+              <section className="surface-card p-5">
+                <TodayGoalSnapshot goalProgress={snapshot.goalProgress} />
+              </section>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -225,9 +280,9 @@ export default function TodayPage() {
           <DialogHeader>
             <DialogTitle>Quick log</DialogTitle>
           </DialogHeader>
-          {logItem && loggingHabit && (
+          {loggingHabit && (
             <LogForm
-              item={logItem}
+              trackingType={loggingHabit.tracking_type}
               unit={loggingHabit.unit}
               onSubmit={(value, note) => void handleQuickLog(value, note)}
             />

@@ -1,0 +1,651 @@
+<style>
+  .cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .card {
+    overflow: hidden;
+  }
+
+  .direction-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .pill {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .mini-app {
+    border-radius: 18px;
+    overflow: hidden;
+    min-height: 360px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .mini-shell {
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    min-height: 360px;
+  }
+
+  .mini-sidebar {
+    padding: 18px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .mini-brand {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+
+  .mini-nav {
+    display: grid;
+    gap: 7px;
+  }
+
+  .mini-nav span {
+    height: 10px;
+    border-radius: 999px;
+    opacity: 0.9;
+  }
+
+  .mini-main {
+    padding: 16px;
+    display: grid;
+    gap: 14px;
+    align-content: start;
+  }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .eyebrow {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    opacity: 0.65;
+    margin-bottom: 6px;
+  }
+
+  .title {
+    font-size: 24px;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    font-weight: 700;
+  }
+
+  .subcopy {
+    font-size: 11px;
+    line-height: 1.45;
+    opacity: 0.72;
+    max-width: 220px;
+    margin-top: 8px;
+  }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .metric {
+    padding: 12px;
+    min-height: 68px;
+  }
+
+  .metric-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.11em;
+    opacity: 0.62;
+  }
+
+  .metric-value {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    margin-top: 10px;
+  }
+
+  .panel {
+    border-radius: 16px;
+    padding: 14px;
+  }
+
+  .panel-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.11em;
+    margin-bottom: 12px;
+    opacity: 0.72;
+  }
+
+  .habit-list,
+  .dense-list {
+    display: grid;
+  }
+
+  .habit-row {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 0;
+  }
+
+  .dense-row {
+    display: grid;
+    grid-template-columns: 42px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 0;
+  }
+
+  .check {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    opacity: 0.8;
+  }
+
+  .time-block {
+    font-size: 10px;
+    opacity: 0.6;
+  }
+
+  .row-lines {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  .line-strong,
+  .line-soft,
+  .line-mini {
+    border-radius: 999px;
+  }
+
+  .line-strong {
+    height: 8px;
+    width: 100%;
+  }
+
+  .line-soft {
+    height: 6px;
+    width: 72%;
+    opacity: 0.6;
+  }
+
+  .line-mini {
+    height: 20px;
+    width: 48px;
+    border-radius: 999px;
+  }
+
+  .calendar-strip {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .calendar-day {
+    border-radius: 12px;
+    padding: 8px;
+    min-height: 76px;
+    display: grid;
+    align-content: start;
+    gap: 7px;
+  }
+
+  .day-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    display: inline-grid;
+    place-items: center;
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  .note {
+    font-size: 12px;
+    line-height: 1.5;
+    opacity: 0.82;
+  }
+
+  .rec {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    margin-top: 8px;
+    color: #f0b073;
+  }
+
+  .rec::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #f0b073;
+  }
+
+  .scheme-refined {
+    background:
+      linear-gradient(180deg, #f7f3ea 0%, #f3eee4 100%);
+    color: #221d18;
+  }
+
+  .scheme-refined .mini-sidebar {
+    background: rgba(255, 255, 255, 0.46);
+  }
+
+  .scheme-refined .mini-nav span:nth-child(1),
+  .scheme-refined .mini-nav span:nth-child(2),
+  .scheme-refined .mini-nav span:nth-child(3),
+  .scheme-refined .mini-nav span:nth-child(4),
+  .scheme-refined .mini-nav span:nth-child(5) {
+    background: rgba(34, 29, 24, 0.12);
+  }
+
+  .scheme-refined .mini-nav span:first-child {
+    background: rgba(214, 130, 57, 0.28);
+  }
+
+  .scheme-refined .metric,
+  .scheme-refined .panel,
+  .scheme-refined .calendar-day {
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(34, 29, 24, 0.08);
+  }
+
+  .scheme-refined .hero-grid {
+    background: rgba(34, 29, 24, 0.08);
+  }
+
+  .scheme-refined .line-strong,
+  .scheme-refined .line-soft,
+  .scheme-refined .line-mini {
+    background: rgba(34, 29, 24, 0.14);
+  }
+
+  .scheme-refined .check {
+    color: rgba(34, 29, 24, 0.35);
+  }
+
+  .scheme-refined .day-dot {
+    background: rgba(214, 130, 57, 0.18);
+    color: #8e4f0b;
+  }
+
+  .scheme-hybrid {
+    background:
+      radial-gradient(circle at top right, rgba(230, 152, 74, 0.18), transparent 30%),
+      linear-gradient(180deg, #f3ede2 0%, #efe8dc 100%);
+    color: #1f1a16;
+  }
+
+  .scheme-hybrid .mini-sidebar {
+    background:
+      linear-gradient(180deg, rgba(255, 251, 245, 0.82), rgba(255, 248, 239, 0.62));
+    border-right: 1px solid rgba(34, 29, 24, 0.08);
+  }
+
+  .scheme-hybrid .mini-nav span {
+    background: rgba(34, 29, 24, 0.11);
+  }
+
+  .scheme-hybrid .mini-nav span:first-child {
+    background: linear-gradient(90deg, rgba(220, 132, 52, 0.7), rgba(220, 132, 52, 0.22));
+  }
+
+  .scheme-hybrid .metric,
+  .scheme-hybrid .calendar-day {
+    background: rgba(255, 255, 255, 0.84);
+    border: 1px solid rgba(34, 29, 24, 0.08);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5), 0 8px 20px rgba(58, 40, 25, 0.07);
+  }
+
+  .scheme-hybrid .panel {
+    background: rgba(255, 252, 248, 0.8);
+    border: 1px solid rgba(34, 29, 24, 0.08);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55), 0 12px 26px rgba(58, 40, 25, 0.08);
+  }
+
+  .scheme-hybrid .hero-grid {
+    background: rgba(34, 29, 24, 0.08);
+  }
+
+  .scheme-hybrid .line-strong {
+    background: rgba(34, 29, 24, 0.17);
+  }
+
+  .scheme-hybrid .line-soft {
+    background: rgba(34, 29, 24, 0.11);
+  }
+
+  .scheme-hybrid .line-mini {
+    background: rgba(216, 129, 50, 0.14);
+  }
+
+  .scheme-hybrid .check {
+    color: rgba(216, 129, 50, 0.55);
+  }
+
+  .scheme-hybrid .day-dot {
+    background: #df8d44;
+    color: #fff8f0;
+  }
+
+  .scheme-atmospheric {
+    background:
+      radial-gradient(circle at top center, rgba(226, 171, 112, 0.14), transparent 30%),
+      linear-gradient(180deg, #171717 0%, #111111 100%);
+    color: #f3efe8;
+  }
+
+  .scheme-atmospheric .mini-sidebar {
+    background: rgba(255, 255, 255, 0.03);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .scheme-atmospheric .mini-nav span {
+    background: rgba(255, 255, 255, 0.09);
+  }
+
+  .scheme-atmospheric .mini-nav span:first-child {
+    background: linear-gradient(90deg, rgba(228, 165, 102, 0.72), rgba(228, 165, 102, 0.24));
+  }
+
+  .scheme-atmospheric .metric,
+  .scheme-atmospheric .calendar-day {
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .scheme-atmospheric .panel {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .scheme-atmospheric .hero-grid {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .scheme-atmospheric .line-strong {
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .scheme-atmospheric .line-soft {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .scheme-atmospheric .line-mini {
+    background: rgba(228, 165, 102, 0.18);
+  }
+
+  .scheme-atmospheric .check {
+    color: rgba(228, 165, 102, 0.62);
+  }
+
+  .scheme-atmospheric .day-dot {
+    background: rgba(228, 165, 102, 0.18);
+    color: #f5d6b3;
+  }
+
+  @media (max-width: 1200px) {
+    .cards {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<h2>UI Direction Comparison</h2>
+<p class="subtitle">Based on your constraints: Today leads the tone, Habits and Calendar stay denser, and the overall direction should feel hybrid rather than fully editorial or fully operational.</p>
+
+<div class="cards">
+  <div class="card" data-choice="refined-current" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mini-app scheme-refined">
+        <div class="mini-shell">
+          <div class="mini-sidebar">
+            <div class="mini-brand">trackr</div>
+            <div class="mini-nav">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+          <div class="mini-main">
+            <div class="topbar">
+              <div>
+                <div class="eyebrow">Overview</div>
+                <div class="title">April 24.</div>
+                <div class="subcopy">Small improvements to hierarchy and contrast without materially changing the product's mood.</div>
+              </div>
+            </div>
+            <div class="hero-grid">
+              <div class="metric">
+                <div class="metric-label">Completed</div>
+                <div class="metric-value">5</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Rate</div>
+                <div class="metric-value">71</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Streaks</div>
+                <div class="metric-value">3</div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-title"><span>Today habits</span><span>Quiet</span></div>
+              <div class="habit-list">
+                <div class="habit-row">
+                  <div class="check"></div>
+                  <div class="row-lines"><div class="line-strong"></div><div class="line-soft"></div></div>
+                  <div class="line-mini"></div>
+                </div>
+                <div class="habit-row">
+                  <div class="check"></div>
+                  <div class="row-lines"><div class="line-strong"></div><div class="line-soft"></div></div>
+                  <div class="line-mini"></div>
+                </div>
+              </div>
+            </div>
+            <div class="calendar-strip">
+              <div class="calendar-day"><div class="day-dot">M</div><div class="line-soft"></div><div class="line-soft" style="width: 55%"></div></div>
+              <div class="calendar-day"><div class="day-dot">T</div><div class="line-soft"></div></div>
+              <div class="calendar-day"><div class="day-dot">W</div><div class="line-soft" style="width: 85%"></div></div>
+              <div class="calendar-day"><div class="day-dot">T</div><div class="line-soft"></div></div>
+              <div class="calendar-day"><div class="day-dot">F</div><div class="line-soft" style="width: 60%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Option A: Refined Current</h3>
+      <p>Keep the existing warm-paper identity and mostly improve consistency: better contrast ramps, cleaner borders, more reliable dark mode, and stronger empty/loading states.</p>
+      <div class="direction-meta">
+        <span class="pill">Lowest risk</span>
+        <span class="pill">Least visual change</span>
+        <span class="pill">May still feel a bit flat</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="editorial-operator" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mini-app scheme-hybrid">
+        <div class="mini-shell">
+          <div class="mini-sidebar">
+            <div class="mini-brand">trackr</div>
+            <div class="mini-nav">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+          <div class="mini-main">
+            <div class="topbar">
+              <div>
+                <div class="eyebrow">Overview</div>
+                <div class="title">April 24.</div>
+                <div class="subcopy">Editorial framing at the shell level, then denser, sharper task surfaces where the user actually works.</div>
+              </div>
+            </div>
+            <div class="hero-grid">
+              <div class="metric">
+                <div class="metric-label">Completed</div>
+                <div class="metric-value">5</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Rate</div>
+                <div class="metric-value">71</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Streaks</div>
+                <div class="metric-value">3</div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-title"><span>Today habits</span><span>Recommended</span></div>
+              <div class="habit-list">
+                <div class="habit-row">
+                  <div class="check"></div>
+                  <div class="row-lines"><div class="line-strong"></div><div class="line-soft"></div></div>
+                  <div class="line-mini"></div>
+                </div>
+                <div class="habit-row">
+                  <div class="check"></div>
+                  <div class="row-lines"><div class="line-strong"></div><div class="line-soft"></div></div>
+                  <div class="line-mini"></div>
+                </div>
+              </div>
+              <div class="rec">Today stays spacious. Calendar and Habits become more compact and explicit.</div>
+            </div>
+            <div class="panel" style="padding-top: 10px; padding-bottom: 10px;">
+              <div class="panel-title"><span>Calendar density</span><span>Sharper</span></div>
+              <div class="dense-list">
+                <div class="dense-row">
+                  <div class="time-block">8:00</div>
+                  <div class="row-lines"><div class="line-strong"></div><div class="line-soft"></div></div>
+                  <div class="line-mini" style="width: 40px;"></div>
+                </div>
+                <div class="dense-row">
+                  <div class="time-block">9:30</div>
+                  <div class="row-lines"><div class="line-strong" style="width: 84%"></div><div class="line-soft" style="width: 54%"></div></div>
+                  <div class="line-mini" style="width: 40px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Option B: Editorial / Operator Hybrid</h3>
+      <p>Keep the warmth and identity, but increase hierarchy, depth, and discipline. Today becomes more atmospheric; Habits and Calendar become clearer, denser, and more tool-like.</p>
+      <div class="direction-meta">
+        <span class="pill">Best fit to your choices</span>
+        <span class="pill">Stronger page contrast</span>
+        <span class="pill">Most coherent system outcome</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="atmospheric-premium" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mini-app scheme-atmospheric">
+        <div class="mini-shell">
+          <div class="mini-sidebar">
+            <div class="mini-brand">trackr</div>
+            <div class="mini-nav">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+          <div class="mini-main">
+            <div class="topbar">
+              <div>
+                <div class="eyebrow">Overview</div>
+                <div class="title">April 24.</div>
+                <div class="subcopy">Push further into mood, softer boundaries, darker atmosphere, and more premium presentation across both light and dark themes.</div>
+              </div>
+            </div>
+            <div class="hero-grid">
+              <div class="metric">
+                <div class="metric-label">Completed</div>
+                <div class="metric-value">5</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Rate</div>
+                <div class="metric-value">71</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Streaks</div>
+                <div class="metric-value">3</div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-title"><span>Today habits</span><span>Moody</span></div>
+              <div class="habit-list">
+                <div class="habit-row">
+                  <div class="check"></div>
+                  <div class="row-lines"><div class="line-strong"></div><div class="line-soft"></div></div>
+                  <div class="line-mini"></div>
+                </div>
+                <div class="habit-row">
+                  <div class="check"></div>
+                  <div class="row-lines"><div class="line-strong"></div><div class="line-soft"></div></div>
+                  <div class="line-mini"></div>
+                </div>
+              </div>
+            </div>
+            <div class="note">Feels premium and distinctive, but pushes the app away from the lighter, calmer daytime workspace feel it currently has.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Option C: Atmospheric Premium</h3>
+      <p>Leans harder into depth, mood, and a darker luxury feel. Visually strongest as a statement, but the risk is sacrificing practical clarity for daily tracking work.</p>
+      <div class="direction-meta">
+        <span class="pill">Highest visual impact</span>
+        <span class="pill">Higher risk</span>
+        <span class="pill">Less aligned with current shell</span>
+      </div>
+    </div>
+  </div>
+</div>

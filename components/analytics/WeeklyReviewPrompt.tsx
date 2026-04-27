@@ -26,8 +26,8 @@ export function WeeklyReviewPrompt({ weekStart, onSave }: WeeklyReviewPromptProp
       <h3 className="text-sm font-semibold text-neutral-900">Weekly review</h3>
       <p className="mt-1 text-xs text-neutral-500">Week of {weekStart}</p>
 
-      <div className="mt-3 grid grid-cols-1 gap-3">
-        <div>
+      <div className="mt-3 grid grid-cols-1 gap-4">
+        <div className="space-y-1.5">
           <Label>Reflection</Label>
           <Input
             value={reflection}
@@ -35,7 +35,7 @@ export function WeeklyReviewPrompt({ weekStart, onSave }: WeeklyReviewPromptProp
             placeholder="What worked this week?"
           />
         </div>
-        <div>
+        <div className="space-y-1.5">
           <Label>Overall score (1-10)</Label>
           <Input
             type="number"
@@ -48,12 +48,12 @@ export function WeeklyReviewPrompt({ weekStart, onSave }: WeeklyReviewPromptProp
       </div>
 
       <Button
-        className="mt-3"
+        className="mt-4"
         disabled={saving}
         onClick={async () => {
           setSaving(true);
           try {
-            const numericScore = score ? Number(score) : undefined;
+            const numericScore = score !== "" ? Number(score) : undefined;
             await onSave({
               week_start: weekStart,
               reflection_text: reflection || undefined,

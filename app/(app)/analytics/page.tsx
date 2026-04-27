@@ -3,14 +3,21 @@
 import { useMemo } from "react";
 
 import { AnalyticsSummaryHeader } from "@/components/analytics/AnalyticsSummaryHeader";
+import { HabitInsightCard } from "@/components/analytics/HabitInsightCard";
 import { useAnalyticsState } from "@/components/analytics/AnalyticsStateProvider";
 import { DeepDiveEntryCard } from "@/components/analytics/summary/DeepDiveEntryCard";
 import { SummaryTrendChart } from "@/components/analytics/summary/SummaryTrendChart";
 import { WeeklyReviewInsightsCard } from "@/components/analytics/summary/WeeklyReviewInsightsCard";
 import { buildAnalyticsSummaryModel } from "@/lib/analytics/summary";
+import { buildAnalyticsProgressModel } from "@/lib/analytics/progress";
 
 export default function AnalyticsPage() {
   const { controls, dataset } = useAnalyticsState();
+
+  const range = useMemo(() => ({
+    startDate: controls.controls.startDate,
+    endDate: controls.controls.endDate,
+  }), [controls.controls.startDate, controls.controls.endDate]);
 
   const summary = useMemo(
     () =>
@@ -22,18 +29,13 @@ export default function AnalyticsPage() {
         habitGoalLinks: dataset.habitGoalLinks,
         todoGoalLinks: dataset.todoGoalLinks,
         weeklyReviews: dataset.weeklyReviews,
-        range: {
-          startDate: controls.controls.startDate,
-          endDate: controls.controls.endDate,
-        },
+        range,
         granularity: controls.controls.granularity,
         comparisonEnabled: controls.controls.comparisonEnabled,
       }),
     [
       controls.controls.comparisonEnabled,
-      controls.controls.endDate,
       controls.controls.granularity,
-      controls.controls.startDate,
       dataset.goals,
       dataset.habits,
       dataset.habitGoalLinks,
@@ -41,6 +43,28 @@ export default function AnalyticsPage() {
       dataset.todoGoalLinks,
       dataset.todos,
       dataset.weeklyReviews,
+      range,
+    ],
+  );
+
+  // Per-habit breakdown for the insight grid
+  const progressModel = useMemo(
+    () =>
+      buildAnalyticsProgressModel({
+        goals: dataset.goals,
+        habits: dataset.habits,
+        logs: dataset.logs,
+        habitGoalLinks: dataset.habitGoalLinks,
+        range,
+        granularity: controls.controls.granularity,
+      }),
+    [
+      controls.controls.granularity,
+      dataset.goals,
+      dataset.habits,
+      dataset.habitGoalLinks,
+      dataset.logs,
+      range,
     ],
   );
 
@@ -73,7 +97,7 @@ export default function AnalyticsPage() {
       />
 
       <div className="scroll-seamless flex-1">
-        <div className="mx-auto max-w-6xl space-y-5 px-8 py-6 pb-16">
+        <div className="mx-auto max-w-6xl space-y-6 px-8 py-5 pb-16">
           {dataset.error && (
             <section className="surface-card border-destructive p-4 text-[13px] text-destructive">
               Failed to load analytics data. Use refresh to retry.
@@ -82,6 +106,18 @@ export default function AnalyticsPage() {
 
           <SummaryTrendChart summary={summary} />
           <WeeklyReviewInsightsCard summary={summary} />
+
+          {/* ── Habit breakdown grid ── */}
+          {progressModel.habits.length > 0 && (
+            <section aria-label="Habit breakdown">
+              <h2 className="text-eyebrow mb-3">Habits</h2>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {progressModel.habits.map((row) => (
+                  <HabitInsightCard key={row.habit.id} row={row} />
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="grid grid-cols-1 gap-3 md:grid-cols-2" aria-label="Deep dive links">
             <DeepDiveEntryCard

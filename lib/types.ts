@@ -5,6 +5,7 @@ export type TrackingType =
   | "amount"
   | "duration"
   | "measurement";
+export type HabitTargetDirection = "at_least" | "at_most";
 export type RecurrenceType =
   | "daily"
   | "weekdays"
@@ -12,6 +13,9 @@ export type RecurrenceType =
   | "times_per_month"
   | "day_of_month";
 export type TodoStatus = "pending" | "complete" | "skipped";
+/** All possible status values a CalendarItem can carry — todos use TodoStatus,
+ *  habit occurrences also add "failed" (logged but target not met). */
+export type CalendarItemStatus = TodoStatus | "failed";
 export type SourceType = "manual" | "habit_instance";
 export type LogSourceType = "habit" | "todo" | "manual";
 
@@ -35,6 +39,7 @@ export interface RecurrenceConfig {
   weekdays?: number[];
   times_per_period?: number;
   day_of_month?: number;
+  duration_minutes?: number;
 }
 
 export interface Habit {
@@ -54,6 +59,7 @@ export interface Habit {
   recurrence_type: RecurrenceType;
   recurrence_config: RecurrenceConfig;
   default_target_value?: number;
+  target_direction?: HabitTargetDirection;
   auto_create_calendar_instances: boolean;
   is_paused?: boolean;
   paused_until?: string;
@@ -124,7 +130,10 @@ export interface LogEntry {
   numeric_value?: number;
   unit?: string;
   note?: string;
-  goal_ids: string[];
+  goal_ids?: string[];
+  completion_photo_url?: string;
+  mood_rating?: number;
+  difficulty_felt?: number;
   created_at: string;
   updated_at: string;
 }
@@ -146,9 +155,10 @@ export interface CalendarItem {
   title: string;
   start_datetime: string;
   end_datetime: string;
+  unit?: string;
   all_day: boolean;
   kind: "todo" | "habit_occurrence";
-  status: TodoStatus;
+  status: CalendarItemStatus;
   source_habit_id?: string;
   requires_numeric_log: boolean;
   linked_goal_ids: string[];
@@ -160,6 +170,7 @@ export interface GoalProgress {
   current_value: number;
   percentage: number;
   is_on_track: boolean;
+  is_completed: boolean;
 }
 
 export type DrawerState =

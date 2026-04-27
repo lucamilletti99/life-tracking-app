@@ -15,7 +15,13 @@ import {
 } from "date-fns";
 
 import { getHabitLogStatusMap } from "./habit-status";
-import type { LogEntry, RecurrenceConfig, RecurrenceType } from "./types";
+import type {
+  HabitTargetDirection,
+  LogEntry,
+  RecurrenceConfig,
+  RecurrenceType,
+  TrackingType,
+} from "./types";
 
 export interface StreakResult {
   current: number;
@@ -79,7 +85,7 @@ function buildDueDates(
   return due;
 }
 
-function summarizeDueDates(dueDates: string[], completed: Set<string>): {
+function summarizeDueDates(dueDates: string[], completed: Set<string>, today: string): {
   current: number;
   best: number;
   neverMissedTwice: boolean;
@@ -103,9 +109,10 @@ function summarizeDueDates(dueDates: string[], completed: Set<string>): {
     }
   }
 
+  const dueDatesForCurrent = dueDates.filter((date) => date < today || completed.has(date));
   let current = 0;
-  for (let i = dueDates.length - 1; i >= 0; i -= 1) {
-    if (!completed.has(dueDates[i])) break;
+  for (let i = dueDatesForCurrent.length - 1; i >= 0; i -= 1) {
+    if (!completed.has(dueDatesForCurrent[i])) break;
     current += 1;
   }
 
@@ -237,10 +244,22 @@ export function computeStreak(
   recurrenceConfig: RecurrenceConfig,
   logs: LogEntry[],
   today: string,
+  evaluation?: {
+    trackingType?: TrackingType;
+    defaultTargetValue?: number;
+    targetDirection?: HabitTargetDirection;
+  },
 ): StreakResult {
   const todayDate = toDate(today);
 
-  const statusMap = getHabitLogStatusMap(logs);
+  const statusMap = getHabitLogStatusMap(logs, [
+    {
+      id: habitId,
+      tracking_type: evaluation?.trackingType ?? "boolean",
+      default_target_value: evaluation?.defaultTargetValue,
+      target_direction: evaluation?.targetDirection ?? "at_least",
+    },
+  ]);
   const completedDates = [...statusMap.entries()]
     .filter(([key, status]) => {
       const [id, date] = key.split("|");
@@ -278,7 +297,7 @@ export function computeStreak(
 
   const firstDate = completedDates[0] ?? today;
   const dueDates = buildDueDates(firstDate, today, recurrenceType, recurrenceConfig);
-  const summary = summarizeDueDates(dueDates, completedSet);
+  const summary = summarizeDueDates(dueDates, completedSet, today);
 
   return {
     current: summary.current,

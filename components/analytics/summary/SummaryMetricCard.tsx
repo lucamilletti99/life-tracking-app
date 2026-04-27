@@ -6,9 +6,9 @@ interface SummaryMetricCardProps {
   progressValue?: number;
 }
 
-export function formatScoreDelta(delta: number) {
-  const signed = delta > 0 ? `+${delta}` : `${delta}`;
-  return `${signed} vs previous period`;
+export function formatScoreDelta(delta: number, unit = "") {
+  const sign = delta > 0 ? "+" : "";
+  return `${sign}${delta}${unit} vs prev. period`;
 }
 
 export function SummaryMetricCard({
@@ -24,13 +24,13 @@ export function SummaryMetricCard({
       : null;
 
   return (
-    <div className={emphasized ? "surface-card-elevated p-4" : "surface-card p-4"}>
+    <div className={`flex flex-col ${emphasized ? "surface-card-elevated p-3" : "surface-card p-3"}`}>
       <p className="text-eyebrow">{label}</p>
-      <p className="text-display-sm mt-1 text-[30px] text-ink">{value}</p>
+      <p className="text-display-sm mt-1 text-[28px] text-ink">{value}</p>
 
       {clampedProgress !== null && (
         <div
-          className="mt-3 h-[6px] w-full overflow-hidden rounded-full bg-hairline"
+          className="mt-2 h-[5px] w-full overflow-hidden rounded-full bg-hairline"
           role="progressbar"
           aria-label={`${label} progress`}
           aria-valuemin={0}
@@ -44,7 +44,7 @@ export function SummaryMetricCard({
         </div>
       )}
 
-      <p className="mt-2 text-[12px] text-ink-subtle">{subline}</p>
+      <p className="mt-auto pt-2 text-[11px] text-ink-subtle">{subline}</p>
     </div>
   );
 }

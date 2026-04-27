@@ -5,9 +5,10 @@ interface HabitHeatmapProps {
 }
 
 const cellColor: Record<HabitHeatmapCell["status"], string> = {
-  complete: "bg-emerald-500",
-  skipped: "bg-neutral-300",
-  none: "bg-neutral-100",
+  complete: "bg-ember",
+  failed: "bg-destructive/80",
+  skipped: "bg-ink-subtle/50",
+  none: "bg-hairline",
 };
 
 function chunkByWeek(cells: HabitHeatmapCell[]): HabitHeatmapCell[][] {
@@ -20,20 +21,31 @@ function chunkByWeek(cells: HabitHeatmapCell[]): HabitHeatmapCell[][] {
   return weeks;
 }
 
+function tooltipText(cell: HabitHeatmapCell): string {
+  const valueLabel =
+    cell.value != null
+      ? `${cell.value.toLocaleString(undefined, { maximumFractionDigits: 2 })}${cell.unit ? ` ${cell.unit}` : ""}`
+      : null;
+
+  return valueLabel
+    ? `${cell.date} · ${cell.status} · ${valueLabel}`
+    : `${cell.date} · ${cell.status}`;
+}
+
 export function HabitHeatmap({ cells }: HabitHeatmapProps) {
   const weeks = chunkByWeek(cells);
 
   return (
-    <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 p-2">
-      <p className="mb-2 text-[11px] text-neutral-500">Last 12 weeks</p>
+    <div className="mt-3 surface-operator p-3">
+      <p className="text-eyebrow mb-2">Last 12 weeks of activity</p>
       <div className="flex gap-1 overflow-x-auto pb-1">
         {weeks.map((week, weekIndex) => (
           <div key={weekIndex} className="grid grid-rows-7 gap-1">
             {week.map((cell) => (
               <div
                 key={cell.date}
-                className={`h-2.5 w-2.5 rounded-[2px] ${cellColor[cell.status]}`}
-                title={`${cell.date} · ${cell.status}`}
+                className={`h-2.5 w-2.5 rounded-[3px] ${cellColor[cell.status]}`}
+                title={tooltipText(cell)}
               />
             ))}
           </div>

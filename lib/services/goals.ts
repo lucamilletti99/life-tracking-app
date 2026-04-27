@@ -1,6 +1,7 @@
 import { toast } from "sonner";
 
 import { supabase } from "@/supabase/client";
+import { logError } from "@/lib/error-formatting";
 
 import type { Goal } from "../types";
 import type { ServiceContext } from "./context";
@@ -13,7 +14,7 @@ export const goalsService = {
       .eq("user_id", ctx.userId)
       .eq("is_active", true)
       .order("created_at");
-    if (error) throw error;
+    if (error) throw logError("[goals] list failed", error, "Failed to load goals");
     return (data ?? []) as Goal[];
   },
 
@@ -24,7 +25,7 @@ export const goalsService = {
       .eq("user_id", ctx.userId)
       .eq("id", id)
       .maybeSingle();
-    if (error) throw error;
+    if (error) throw logError("[goals] get failed", error, "Failed to load goal");
     return data as Goal | undefined;
   },
 
@@ -32,8 +33,6 @@ export const goalsService = {
     ctx: ServiceContext,
     data: Omit<Goal, "id" | "created_at" | "updated_at">,
   ): Promise<Goal> => {
-    const data = "userId" in dataOrCtx ? maybeData : dataOrCtx;
-    if (!data) throw new Error("Goal payload is required");
 
     try {
       const { data: row, error } = await supabase
@@ -46,8 +45,7 @@ export const goalsService = {
       return row as Goal;
     } catch (err) {
       toast.error("Failed to create goal");
-      console.error("[goals] create failed", err);
-      throw err;
+      throw logError("[goals] create failed", err, "Failed to create goal");
     }
   },
 
@@ -65,8 +63,7 @@ export const goalsService = {
       return row as Goal;
     } catch (err) {
       toast.error("Failed to update goal");
-      console.error("[goals] update failed", err);
-      throw err;
+      throw logError("[goals] update failed", err, "Failed to update goal");
     }
   },
 
@@ -81,8 +78,7 @@ export const goalsService = {
       console.log("[goals] delete succeeded", id);
     } catch (err) {
       toast.error("Failed to delete goal");
-      console.error("[goals] delete failed", err);
-      throw err;
+      throw logError("[goals] delete failed", err, "Failed to delete goal");
     }
   },
 
@@ -91,7 +87,7 @@ export const goalsService = {
       .from("habit_goal_links")
       .select("habit_id")
       .eq("goal_id", goalId);
-    if (error) throw error;
+    if (error) throw logError("[goals] get linked habits failed", error, "Failed to load goal links");
     return (data ?? []).map((r: { habit_id: string }) => r.habit_id);
   },
 
@@ -100,7 +96,7 @@ export const goalsService = {
       .from("todo_goal_links")
       .select("todo_id")
       .eq("goal_id", goalId);
-    if (error) throw error;
+    if (error) throw logError("[goals] get linked todos failed", error, "Failed to load goal links");
     return (data ?? []).map((r: { todo_id: string }) => r.todo_id);
   },
 
@@ -108,7 +104,7 @@ export const goalsService = {
     const { error } = await supabase
       .from("habit_goal_links")
       .upsert({ goal_id: goalId, habit_id: habitId });
-    if (error) throw error;
+    if (error) throw logError("[goals] link habit failed", error, "Failed to link habit");
   },
 
   unlinkHabit: async (_ctx: ServiceContext, goalId: string, habitId: string): Promise<void> => {
@@ -116,6 +112,6 @@ export const goalsService = {
       .from("habit_goal_links")
       .delete()
       .match({ goal_id: goalId, habit_id: habitId });
-    if (error) throw error;
+    if (error) throw logError("[goals] unlink habit failed", error, "Failed to unlink habit");
   },
 };

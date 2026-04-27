@@ -54,6 +54,24 @@ describe("times_per_week recurrence", () => {
     expect(dates[1]).toBe("2026-04-16");
     expect(dates[2]).toBe("2026-04-18");
   });
+
+  it("applies occurrences per calendar week across multi-week ranges", () => {
+    const habit: Habit = {
+      ...base,
+      recurrence_type: "times_per_week",
+      recurrence_config: { times_per_period: 3 },
+    };
+    const dates = getOccurrencesInRange(habit, "2026-04-13", "2026-04-26");
+
+    expect(dates).toEqual([
+      "2026-04-13",
+      "2026-04-15",
+      "2026-04-17",
+      "2026-04-20",
+      "2026-04-22",
+      "2026-04-24",
+    ]);
+  });
 });
 
 describe("times_per_month recurrence", () => {
@@ -81,6 +99,22 @@ describe("times_per_month recurrence", () => {
 
     const dates = getOccurrencesInRange(habit, "2026-04-10", "2026-04-10");
     expect(dates).toEqual(["2026-04-10"]);
+  });
+
+  it("applies occurrences per calendar month across multi-month ranges", () => {
+    const habit: Habit = {
+      ...base,
+      recurrence_type: "times_per_month",
+      recurrence_config: { times_per_period: 2 },
+    };
+
+    const dates = getOccurrencesInRange(habit, "2026-04-01", "2026-05-31");
+    expect(dates).toEqual([
+      "2026-04-01",
+      "2026-04-16",
+      "2026-05-01",
+      "2026-05-16",
+    ]);
   });
 });
 

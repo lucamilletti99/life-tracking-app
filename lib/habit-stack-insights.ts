@@ -1,4 +1,5 @@
 import { getHabitLogStatusMap, habitStatusKey } from "./habit-status";
+import { isHabitEffectivelyPaused } from "./habit-pause";
 import type { Habit, HabitStack, LogEntry } from "./types";
 
 export function buildHabitStackCueMap(input: {
@@ -8,7 +9,7 @@ export function buildHabitStackCueMap(input: {
   today: string;
 }): Map<string, string[]> {
   const habitById = new Map(input.habits.map((habit) => [habit.id, habit]));
-  const statusByOccurrence = getHabitLogStatusMap(input.logs);
+  const statusByOccurrence = getHabitLogStatusMap(input.logs, input.habits);
   const cueByHabitId = new Map<string, string[]>();
 
   for (const stack of input.stacks) {
@@ -16,7 +17,7 @@ export function buildHabitStackCueMap(input: {
     const following = habitById.get(stack.following_habit_id);
 
     if (!preceding || !following) continue;
-    if (!following.is_active || following.is_paused) continue;
+    if (!following.is_active || isHabitEffectivelyPaused(following, input.today)) continue;
 
     const precedingStatus = statusByOccurrence.get(
       habitStatusKey(preceding.id, input.today),

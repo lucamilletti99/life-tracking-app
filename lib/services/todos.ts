@@ -1,6 +1,7 @@
 import { toast } from "sonner";
 
 import { supabase } from "@/supabase/client";
+import { logError } from "@/lib/error-formatting";
 
 import type { Todo, TodoGoalLink } from "../types";
 import type { ServiceContext } from "./context";
@@ -12,7 +13,7 @@ export const todosService = {
       .select("*")
       .eq("user_id", ctx.userId)
       .order("start_datetime");
-    if (error) throw error;
+    if (error) throw logError("[todos] list failed", error, "Failed to load todos");
     return (data ?? []) as Todo[];
   },
 
@@ -23,7 +24,7 @@ export const todosService = {
       .eq("user_id", ctx.userId)
       .eq("id", id)
       .maybeSingle();
-    if (error) throw error;
+    if (error) throw logError("[todos] get failed", error, "Failed to load todo");
     return data as Todo | undefined;
   },
 
@@ -37,8 +38,8 @@ export const todosService = {
       .select("*")
       .eq("user_id", ctx.userId)
       .gte("start_datetime", start)
-      .lt("start_datetime", end);
-    if (error) throw error;
+      .lte("start_datetime", end);
+    if (error) throw logError("[todos] list by date range failed", error, "Failed to load todos");
     return (data ?? []) as Todo[];
   },
 
@@ -51,7 +52,7 @@ export const todosService = {
       .from("todo_goal_links")
       .select("*")
       .in("todo_id", todoIds);
-    if (error) throw error;
+    if (error) throw logError("[todos] list goal links failed", error, "Failed to load todo links");
     return (data ?? []) as TodoGoalLink[];
   },
 
@@ -67,9 +68,6 @@ export const todosService = {
     ctx: ServiceContext,
     data: Omit<Todo, "id" | "created_at" | "updated_at">,
   ): Promise<Todo> => {
-    const data =
-      "userId" in dataOrCtx ? maybeData : dataOrCtx;
-    if (!data) throw new Error("Todo payload is required");
 
     try {
       const { data: row, error } = await supabase
@@ -82,8 +80,7 @@ export const todosService = {
       return row as Todo;
     } catch (err) {
       toast.error("Failed to create todo");
-      console.error("[todos] create failed", err);
-      throw err;
+      throw logError("[todos] create failed", err, "Failed to create todo");
     }
   },
 
@@ -101,8 +98,7 @@ export const todosService = {
       return row as Todo;
     } catch (err) {
       toast.error("Failed to update todo");
-      console.error("[todos] update failed", err);
-      throw err;
+      throw logError("[todos] update failed", err, "Failed to update todo");
     }
   },
 
@@ -117,8 +113,7 @@ export const todosService = {
       console.log("[todos] delete succeeded", id);
     } catch (err) {
       toast.error("Failed to delete todo");
-      console.error("[todos] delete failed", err);
-      throw err;
+      throw logError("[todos] delete failed", err, "Failed to delete todo");
     }
   },
 };

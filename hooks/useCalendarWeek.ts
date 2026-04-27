@@ -19,10 +19,9 @@ import {
 import { buildCalendarItems } from "@/lib/calendar-items";
 import { habitsService } from "@/lib/services/habits";
 import { getServiceContext } from "@/lib/services/context";
-import { getHabitOccurrenceStatusMap, habitStatusKey } from "@/lib/habit-status";
 import { logsService } from "@/lib/services/logs";
 import { todosService } from "@/lib/services/todos";
-import type { CalendarItem, HabitGoalLink, TodoGoalLink } from "@/lib/types";
+import type { CalendarItem } from "@/lib/types";
 
 export type CalendarViewMode = "week" | "day" | "month";
 
@@ -30,6 +29,7 @@ export function useCalendarWeek(view: CalendarViewMode = "week") {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [items, setItems] = useState<CalendarItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
 
   const weekStart = useMemo(
@@ -64,6 +64,7 @@ export function useCalendarWeek(view: CalendarViewMode = "week") {
 
     async function load() {
       setLoading(true);
+      setError(null);
 
       try {
         const ctx = await getServiceContext();
@@ -85,60 +86,25 @@ export function useCalendarWeek(view: CalendarViewMode = "week") {
           todosService.listGoalLinksForIds(ctx, todoIds),
         ]);
 
-        const habitGoalMap = new Map<string, string[]>();
-        for (const link of habitGoalLinks as HabitGoalLink[]) {
-          const ids = habitGoalMap.get(link.habit_id) ?? [];
-          ids.push(link.goal_id);
-          habitGoalMap.set(link.habit_id, ids);
-        }
-
-        const todoGoalMap = new Map<string, string[]>();
-        for (const link of todoGoalLinks as TodoGoalLink[]) {
-          const ids = todoGoalMap.get(link.todo_id) ?? [];
-          ids.push(link.goal_id);
-          todoGoalMap.set(link.todo_id, ids);
-        }
-
-        const habitStatusMap = getHabitOccurrenceStatusMap(logs);
-
-        const todoItems: CalendarItem[] = todos.map((t) => ({
-          id: t.id,
-          title: t.title,
-          start_datetime: t.start_datetime,
-          end_datetime: t.end_datetime,
-          all_day: t.all_day,
-          kind: "todo",
-          status: t.status,
-          source_habit_id: t.source_habit_id,
-          requires_numeric_log: t.requires_numeric_log,
-          linked_goal_ids: todoGoalMap.get(t.id) ?? [],
-        }));
-
-        const habitItems: CalendarItem[] = habits
-          .filter((h) => h.auto_create_calendar_instances)
-          .flatMap((habit) => {
-            const dates = getOccurrencesInRange(habit, startStr, endStr);
-            return dates.map((date) => ({
-              id: `habit-${habit.id}-${date}`,
-              title: habit.title,
-              start_datetime: `${date}T08:00:00`,
-              end_datetime: `${date}T08:30:00`,
-              all_day: false,
-              kind: "habit_occurrence" as const,
-              status: habitStatusMap.get(habitStatusKey(habit.id, date)) ?? "pending",
-              source_habit_id: habit.id,
-              requires_numeric_log: habit.tracking_type !== "boolean",
-              linked_goal_ids: habitGoalMap.get(habit.id) ?? [],
-            }));
-          });
-
         if (!cancelled) {
-          setItems(enriched);
+          setItems(
+            buildCalendarItems({
+              todos,
+              habits,
+              logs,
+              habitGoalLinks,
+              todoGoalLinks,
+              start: startStr,
+              end: endStr,
+              today: format(new Date(), "yyyy-MM-dd"),
+            }),
+          );
         }
-      } catch (error) {
+      } catch (err) {
         if (!cancelled) {
           setItems([]);
-          console.error(error);
+          setError(err instanceof Error ? err : new Error(String(err)));
+          console.error(err);
         }
       } finally {
         if (!cancelled) {
@@ -177,6 +143,7 @@ export function useCalendarWeek(view: CalendarViewMode = "week") {
     days,
     items,
     loading,
+    error,
     refresh,
     setCurrentDate,
     goToPrevPeriod,

@@ -7,6 +7,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Goal, GoalType } from "@/lib/types";
 
+const goalTypeConfig: Record<GoalType, { label: string; description: string }> = {
+  target: {
+    label: "Reach a number",
+    description: "Hit a specific value, like losing 20 lbs or saving $5,000",
+  },
+  accumulation: {
+    label: "Build up a total",
+    description: "Add up over time, like reading 500 pages or running 100 miles",
+  },
+  limit: {
+    label: "Stay under",
+    description: "Keep a running total below a cap, like spending under $500/month",
+  },
+};
+
 interface GoalFormProps {
   goalId?: string;
   initial?: Partial<Goal>;
@@ -131,40 +146,49 @@ export function GoalForm({ goalId, initial, onSubmit, onAutoSave, onCancel }: Go
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div>
-        <Label>Title</Label>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <div className="space-y-1.5">
+        <Label>Goal name</Label>
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
-          placeholder="e.g. Read 500 pages"
+          placeholder="e.g. Lose 20 lbs, Read 500 pages, Save $5k"
         />
       </div>
 
-      <div>
-        <Label>Type</Label>
-        <div className="mt-1 flex gap-2">
-          {(["target", "accumulation", "limit"] as GoalType[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setGoalType(t)}
-              className={`rounded-lg border px-3 py-1.5 text-sm capitalize transition-colors ${
-                goalType === t
-                  ? "border-neutral-900 bg-neutral-900 text-white"
-                  : "border-neutral-200 text-neutral-600 hover:border-neutral-400"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
+      <div className="space-y-2">
+        <Label>Goal type</Label>
+        <div className="mt-2 flex flex-col gap-2">
+          {(["target", "accumulation", "limit"] as GoalType[]).map((t) => {
+            const config = goalTypeConfig[t];
+            const selected = goalType === t;
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setGoalType(t)}
+                className={`flex flex-col items-start rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                  selected
+                    ? "border-neutral-900 bg-neutral-900 text-white"
+                    : "border-neutral-200 text-neutral-700 hover:border-neutral-400"
+                }`}
+              >
+                <span className="text-sm font-medium">{config.label}</span>
+                <span
+                  className={`mt-0.5 text-xs ${selected ? "text-neutral-300" : "text-neutral-500"}`}
+                >
+                  {config.description}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="flex gap-3">
-        <div className="flex-1">
-          <Label>Target value</Label>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label>Target number</Label>
           <Input
             type="number"
             value={targetValue}
@@ -172,7 +196,7 @@ export function GoalForm({ goalId, initial, onSubmit, onAutoSave, onCancel }: Go
             required
           />
         </div>
-        <div className="flex-1">
+        <div className="space-y-1.5">
           <Label>Unit</Label>
           <Input
             value={unit}
@@ -184,19 +208,19 @@ export function GoalForm({ goalId, initial, onSubmit, onAutoSave, onCancel }: Go
       </div>
 
       {goalType === "target" && (
-        <div>
-          <Label>Baseline value</Label>
+        <div className="space-y-1.5">
+          <Label>Starting value</Label>
           <Input
             type="number"
             value={baselineValue}
             onChange={(e) => setBaselineValue(e.target.value)}
-            placeholder="Starting value"
+            placeholder="Where you are today"
           />
         </div>
       )}
 
-      <div className="flex gap-3">
-        <div className="flex-1">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
           <Label>Start date</Label>
           <Input
             type="date"
@@ -205,8 +229,8 @@ export function GoalForm({ goalId, initial, onSubmit, onAutoSave, onCancel }: Go
             required
           />
         </div>
-        <div className="flex-1">
-          <Label>End date</Label>
+        <div className="space-y-1.5">
+          <Label>Deadline</Label>
           <Input
             type="date"
             value={endDate}
@@ -217,7 +241,7 @@ export function GoalForm({ goalId, initial, onSubmit, onAutoSave, onCancel }: Go
       </div>
 
       {!isEditMode && (
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex justify-end gap-2 pt-3">
           <Button type="button" variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
@@ -226,7 +250,7 @@ export function GoalForm({ goalId, initial, onSubmit, onAutoSave, onCancel }: Go
       )}
 
       {isEditMode && (
-        <div className="flex justify-end pt-2">
+        <div className="flex justify-end pt-3">
           <Button type="button" variant="ghost" onClick={() => void handleDone()} disabled={saving}>
             {saving ? "Saving..." : "Done"}
           </Button>

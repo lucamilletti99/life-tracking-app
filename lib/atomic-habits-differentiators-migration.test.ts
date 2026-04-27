@@ -3,26 +3,29 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const migrationPath = resolve(
+const authPath = resolve(
   process.cwd(),
-  "supabase/migrations/004_atomic_habits_differentiators.sql",
+  "supabase/sql/auth_rls.sql",
 );
+const dropPath = resolve(process.cwd(), "supabase/sql/drop_all_tables.sql");
 
-describe("atomic habits differentiators migration", () => {
-  it("creates habit_stacks table", () => {
-    const sql = readFileSync(migrationPath, "utf8");
+describe("database auth and reset scripts", () => {
+  it("drops all app tables for a clean reset", () => {
+    const sql = readFileSync(dropPath, "utf8");
 
-    expect(sql).toContain("create table if not exists habit_stacks");
-    expect(sql).toContain("preceding_habit_id uuid not null references habits(id) on delete cascade");
-    expect(sql).toContain("following_habit_id uuid not null references habits(id) on delete cascade");
+    expect(sql).toContain("drop table if exists");
+    expect(sql).toContain("habit_stacks");
+    expect(sql).toContain("weekly_reviews");
+    expect(sql).toContain("log_entries");
+    expect(sql).toContain("goals");
   });
 
-  it("creates weekly_reviews table", () => {
-    const sql = readFileSync(migrationPath, "utf8");
+  it("enables RLS and policies for differentiator tables", () => {
+    const sql = readFileSync(authPath, "utf8");
 
-    expect(sql).toContain("create table if not exists weekly_reviews");
-    expect(sql).toContain("week_start date not null");
-    expect(sql).toContain("overall_score int");
-    expect(sql).toContain("check (overall_score between 1 and 10)");
+    expect(sql).toContain("alter table habit_stacks enable row level security");
+    expect(sql).toContain("alter table weekly_reviews enable row level security");
+    expect(sql).toContain("create policy \"habit_stacks_owner_access\"");
+    expect(sql).toContain("create policy \"weekly_reviews_owner_access\"");
   });
 });

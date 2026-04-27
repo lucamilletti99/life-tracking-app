@@ -27,6 +27,7 @@ create table habits (
   recurrence_type text not null check (recurrence_type in ('daily','weekdays','times_per_week','times_per_month','day_of_month')),
   recurrence_config jsonb not null default '{}',
   default_target_value numeric,
+  target_direction text not null default 'at_least' check (target_direction in ('at_least','at_most')),
   auto_create_calendar_instances boolean not null default true,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),

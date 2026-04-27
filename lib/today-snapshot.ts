@@ -1,14 +1,16 @@
 import { calculateGoalProgress } from "./goal-calculations";
+import { isHabitEffectivelyPaused } from "./habit-pause";
 import { buildHabitStackCueMap } from "./habit-stack-insights";
 import { getHabitTodayState, type HabitTodayState } from "./habit-insights";
 import { computeStreak } from "./streak";
-import type { Goal, Habit, HabitGoalLink, HabitStack, LogEntry, Todo } from "./types";
+import type { Goal, Habit, HabitGoalLink, HabitStack, LogEntry, Todo, TodoGoalLink } from "./types";
 
 export interface TodayHabitItem {
   habit: Habit;
   status: HabitTodayState;
   currentStreak: number;
   linkedGoalIds: string[];
+  linkedGoalTitles: string[];
   stackCueFromTitles?: string[];
 }
 
@@ -48,11 +50,15 @@ export function buildTodaySnapshot(input: {
   goals: Goal[];
   logs: LogEntry[];
   habitGoalLinks: HabitGoalLink[];
+  todoGoalLinks: TodoGoalLink[];
   habitStacks: HabitStack[];
   today: string;
 }): TodaySnapshot {
   const habitById = new Map(input.habits.map((habit) => [habit.id, habit]));
+  const goalById = new Map(input.goals.map((goal) => [goal.id, goal]));
   const linksByHabit = new Map<string, string[]>();
+  const linkedHabitsByGoal = new Map<string, string[]>();
+  const linkedTodosByGoal = new Map<string, string[]>();
   const stackCueByHabitId = buildHabitStackCueMap({
     habits: input.habits,
     stacks: input.habitStacks,
@@ -63,6 +69,14 @@ export function buildTodaySnapshot(input: {
   for (const link of input.habitGoalLinks) {
     const current = linksByHabit.get(link.habit_id) ?? [];
     linksByHabit.set(link.habit_id, [...current, link.goal_id]);
+
+    const goalHabits = linkedHabitsByGoal.get(link.goal_id) ?? [];
+    linkedHabitsByGoal.set(link.goal_id, [...goalHabits, link.habit_id]);
+  }
+
+  for (const link of input.todoGoalLinks) {
+    const goalTodos = linkedTodosByGoal.get(link.goal_id) ?? [];
+    linkedTodosByGoal.set(link.goal_id, [...goalTodos, link.todo_id]);
   }
 
   const habitGroups: TodaySnapshot["habitGroups"] = {
@@ -72,7 +86,9 @@ export function buildTodaySnapshot(input: {
     anytime: [],
   };
 
-  const activeHabits = input.habits.filter((habit) => habit.is_active);
+  const activeHabits = input.habits.filter(
+    (habit) => habit.is_active && !isHabitEffectivelyPaused(habit, input.today),
+  );
 
   for (const habit of activeHabits) {
     const status = getHabitTodayState(habit, input.logs, input.today);
@@ -82,13 +98,22 @@ export function buildTodaySnapshot(input: {
       habit.recurrence_config,
       input.logs,
       input.today,
+      {
+        trackingType: habit.tracking_type,
+        defaultTargetValue: habit.default_target_value,
+        targetDirection: habit.target_direction,
+      },
     );
 
+    const habitLinkedGoalIds = linksByHabit.get(habit.id) ?? [];
     const row: TodayHabitItem = {
       habit,
       status,
       currentStreak: streak.current,
-      linkedGoalIds: linksByHabit.get(habit.id) ?? [],
+      linkedGoalIds: habitLinkedGoalIds,
+      linkedGoalTitles: habitLinkedGoalIds
+        .map((goalId) => goalById.get(goalId)?.title)
+        .filter((title): title is string => Boolean(title)),
       stackCueFromTitles: (stackCueByHabitId.get(habit.id) ?? [])
         .map((precedingHabitId) => habitById.get(precedingHabitId)?.title)
         .filter((title): title is string => Boolean(title)),
@@ -101,7 +126,12 @@ export function buildTodaySnapshot(input: {
     .filter((todo) => todo.start_datetime.startsWith(input.today))
     .sort((a, b) => a.start_datetime.localeCompare(b.start_datetime));
 
-  const goalProgress = input.goals.map((goal) => calculateGoalProgress(goal, input.logs));
+  const goalProgress = input.goals.map((goal) =>
+    calculateGoalProgress(goal, input.logs, [
+      ...(linkedHabitsByGoal.get(goal.id) ?? []),
+      ...(linkedTodosByGoal.get(goal.id) ?? []),
+    ]),
+  );
 
   const summary = {
     totalHabits: activeHabits.length,

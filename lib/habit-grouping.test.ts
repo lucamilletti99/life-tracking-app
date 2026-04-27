@@ -98,4 +98,40 @@ describe("groupHabitsByGoal", () => {
     expect(grouped.sections[1].habits.map((h) => h.id)).toEqual(["h2"]);
     expect(grouped.unlinked.map((h) => h.id)).toEqual(["h3"]);
   });
+
+  it("deduplicates repeated habit-goal links in the same section", () => {
+    const goals: Goal[] = [
+      {
+        ...goalBase,
+        id: "g1",
+        title: "Goal A",
+        goal_type: "target",
+        unit: "unit",
+        target_value: 10,
+        start_date: "2026-04-01",
+        end_date: "2026-04-30",
+      },
+    ];
+
+    const habits: Habit[] = [
+      {
+        ...habitBase,
+        id: "h1",
+        title: "Habit 1",
+        tracking_type: "boolean",
+        recurrence_type: "daily",
+        recurrence_config: {},
+      },
+    ];
+
+    const links: HabitGoalLink[] = [
+      { id: "l1", habit_id: "h1", goal_id: "g1", created_at: "" },
+      { id: "l2", habit_id: "h1", goal_id: "g1", created_at: "" },
+    ];
+
+    const grouped = groupHabitsByGoal({ goals, habits, links });
+
+    expect(grouped.sections).toHaveLength(1);
+    expect(grouped.sections[0].habits.map((h) => h.id)).toEqual(["h1"]);
+  });
 });

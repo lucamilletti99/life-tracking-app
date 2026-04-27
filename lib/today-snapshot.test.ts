@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildTodaySnapshot } from "./today-snapshot";
-import type { Goal, Habit, HabitGoalLink, LogEntry, Todo } from "./types";
+import type { Goal, Habit, HabitGoalLink, LogEntry, Todo, TodoGoalLink } from "./types";
 
 const baseHabit: Omit<Habit, "id" | "title" | "recurrence_type" | "recurrence_config"> = {
   tracking_type: "boolean",
@@ -11,7 +11,7 @@ const baseHabit: Omit<Habit, "id" | "title" | "recurrence_type" | "recurrence_co
   updated_at: "",
 };
 
-function habit(overrides: Partial<Habit>): Habit {
+function habit(overrides: Partial<Habit> = {}): Habit {
   return {
     ...baseHabit,
     id: "habit-1",
@@ -22,7 +22,7 @@ function habit(overrides: Partial<Habit>): Habit {
   };
 }
 
-function goal(overrides: Partial<Goal>): Goal {
+function goal(overrides: Partial<Goal> = {}): Goal {
   return {
     id: "goal-1",
     title: "Read books",
@@ -38,7 +38,7 @@ function goal(overrides: Partial<Goal>): Goal {
   };
 }
 
-function todo(overrides: Partial<Todo>): Todo {
+function todo(overrides: Partial<Todo> = {}): Todo {
   return {
     id: "todo-1",
     title: "Plan chapter",
@@ -54,7 +54,7 @@ function todo(overrides: Partial<Todo>): Todo {
   };
 }
 
-function log(overrides: Partial<LogEntry>): LogEntry {
+function log(overrides: Partial<LogEntry> = {}): LogEntry {
   return {
     id: `l-${Math.random()}`,
     entry_date: "2026-04-21",
@@ -85,6 +85,7 @@ describe("buildTodaySnapshot", () => {
       habitGoalLinks: [
         { id: "hgl-1", habit_id: "h-morning", goal_id: "goal-1", created_at: "" },
       ],
+      todoGoalLinks: [],
       habitStacks: [],
       today: "2026-04-21",
     });
@@ -105,6 +106,7 @@ describe("buildTodaySnapshot", () => {
       goals: [goal()],
       logs: [log({ source_id: "h1", entry_date: "2026-04-21" })],
       habitGoalLinks: [] as HabitGoalLink[],
+      todoGoalLinks: [] as TodoGoalLink[],
       habitStacks: [],
       today: "2026-04-21",
     });
@@ -125,6 +127,7 @@ describe("buildTodaySnapshot", () => {
       goals: [],
       logs: [log({ source_id: "habit-a", entry_date: "2026-04-21" })],
       habitGoalLinks: [],
+      todoGoalLinks: [],
       habitStacks: [
         {
           id: "stack-1",
@@ -139,5 +142,77 @@ describe("buildTodaySnapshot", () => {
 
     const stackedRow = snapshot.habitGroups.anytime.find((row) => row.habit.id === "habit-b");
     expect(stackedRow?.stackCueFromTitles).toEqual(["Drink water"]);
+  });
+
+  it("does not count failed tracked habits as completed in summary", () => {
+    const snapshot = buildTodaySnapshot({
+      habits: [
+        habit({
+          id: "h1",
+          title: "Spend less",
+          tracking_type: "measurement",
+          unit: "USD",
+          default_target_value: 500,
+          target_direction: "at_most",
+        }),
+      ],
+      todos: [],
+      goals: [goal()],
+      logs: [log({ source_id: "h1", numeric_value: 700 })],
+      habitGoalLinks: [],
+      todoGoalLinks: [],
+      habitStacks: [],
+      today: "2026-04-21",
+    });
+
+    expect(snapshot.habitGroups.anytime[0]?.status).toBe("failed");
+    expect(snapshot.summary.completedHabits).toBe(0);
+  });
+
+  it("includes todo-linked logs in goal progress", () => {
+    const snapshot = buildTodaySnapshot({
+      habits: [],
+      todos: [todo({ id: "todo-1" })],
+      goals: [goal({ id: "goal-1", target_value: 100 })],
+      logs: [
+        log({
+          source_type: "todo",
+          source_id: "todo-1",
+          numeric_value: 25,
+          unit: "pages",
+          entry_date: "2026-04-21",
+          entry_datetime: "2026-04-21T12:00:00Z",
+        }),
+      ],
+      habitGoalLinks: [],
+      todoGoalLinks: [{ id: "tgl-1", todo_id: "todo-1", goal_id: "goal-1", created_at: "" }],
+      habitStacks: [],
+      today: "2026-04-21",
+    });
+
+    expect(snapshot.goalProgress[0]?.current_value).toBe(25);
+    expect(snapshot.goalProgress[0]?.percentage).toBe(25);
+  });
+
+  it("includes habits whose pause-until date has passed", () => {
+    const snapshot = buildTodaySnapshot({
+      habits: [
+        habit({
+          id: "habit-1",
+          is_paused: true,
+          paused_until: "2026-04-20",
+        }),
+      ],
+      todos: [],
+      goals: [],
+      logs: [],
+      habitGoalLinks: [],
+      todoGoalLinks: [],
+      habitStacks: [],
+      today: "2026-04-21",
+    });
+
+    expect(snapshot.summary.totalHabits).toBe(1);
+    expect(snapshot.habitGroups.anytime).toHaveLength(1);
   });
 });

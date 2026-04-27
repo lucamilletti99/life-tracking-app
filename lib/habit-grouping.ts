@@ -26,10 +26,19 @@ export function groupHabitsByGoal({
 
   const sections: HabitSection[] = goals
     .map((goal) => {
-      const goalHabits = links
-        .filter((link) => link.goal_id === goal.id)
-        .map((link) => habitMap.get(link.habit_id))
-        .filter((habit): habit is Habit => Boolean(habit));
+      const seenHabitIds = new Set<string>();
+      const goalHabits: Habit[] = [];
+
+      for (const link of links) {
+        if (link.goal_id !== goal.id) continue;
+        if (seenHabitIds.has(link.habit_id)) continue;
+
+        const habit = habitMap.get(link.habit_id);
+        if (!habit) continue;
+
+        seenHabitIds.add(link.habit_id);
+        goalHabits.push(habit);
+      }
 
       for (const habit of goalHabits) linkedHabitIds.add(habit.id);
 

@@ -2,6 +2,13 @@ import { toast } from "sonner";
 
 import { supabase } from "@/supabase/client";
 
+import {
+  MEASUREMENT_UNIT_REQUIRED_MESSAGE,
+  prepareHabitCreatePayload,
+  serializeHabitUpdatePayload,
+} from "@/lib/habit-validation";
+import { logError } from "@/lib/error-formatting";
+
 import type { Habit, HabitGoalLink } from "../types";
 import type { ServiceContext } from "./context";
 
@@ -13,7 +20,7 @@ export const habitsService = {
       .eq("user_id", ctx.userId)
       .eq("is_active", true)
       .order("created_at");
-    if (error) throw error;
+    if (error) throw logError("[habits] list failed", error, "Failed to load habits");
     return (data ?? []) as Habit[];
   },
 
@@ -24,7 +31,7 @@ export const habitsService = {
       .eq("user_id", ctx.userId)
       .eq("id", id)
       .maybeSingle();
-    if (error) throw error;
+    if (error) throw logError("[habits] get failed", error, "Failed to load habit");
     return data as Habit | undefined;
   },
 
@@ -32,30 +39,37 @@ export const habitsService = {
     ctx: ServiceContext,
     data: Omit<Habit, "id" | "created_at" | "updated_at">,
   ): Promise<Habit> => {
-    const data = "userId" in dataOrCtx ? maybeData : dataOrCtx;
-    if (!data) throw new Error("Habit payload is required");
 
     try {
+      const payload = prepareHabitCreatePayload(data);
       const { data: row, error } = await supabase
         .from("habits")
-        .insert({ ...data, user_id: ctx.userId })
+        .insert({ ...payload, user_id: ctx.userId })
         .select()
         .single();
       if (error) throw error;
       console.log("[habits] create succeeded", row);
       return row as Habit;
     } catch (err) {
-      toast.error("Failed to create habit");
-      console.error("[habits] create failed", err);
-      throw err;
+      if (err instanceof Error && err.message === MEASUREMENT_UNIT_REQUIRED_MESSAGE) {
+        toast.error(err.message);
+      } else {
+        toast.error("Failed to create habit");
+      }
+      throw logError("[habits] create failed", err, "Failed to create habit");
     }
   },
 
   update: async (ctx: ServiceContext, id: string, data: Partial<Habit>): Promise<Habit> => {
     try {
+      const current = await habitsService.get(ctx, id);
+      if (!current) {
+        throw new Error("Habit not found");
+      }
+      const payload = serializeHabitUpdatePayload(current, data);
       const { data: row, error } = await supabase
         .from("habits")
-        .update({ ...data, updated_at: new Date().toISOString() })
+        .update({ ...payload, updated_at: new Date().toISOString() })
         .eq("user_id", ctx.userId)
         .eq("id", id)
         .select()
@@ -64,9 +78,12 @@ export const habitsService = {
       console.log("[habits] update succeeded", row);
       return row as Habit;
     } catch (err) {
-      toast.error("Failed to update habit");
-      console.error("[habits] update failed", err);
-      throw err;
+      if (err instanceof Error && err.message === MEASUREMENT_UNIT_REQUIRED_MESSAGE) {
+        toast.error(err.message);
+      } else {
+        toast.error("Failed to update habit");
+      }
+      throw logError("[habits] update failed", err, "Failed to update habit");
     }
   },
 
@@ -81,8 +98,7 @@ export const habitsService = {
       console.log("[habits] archive succeeded", id);
     } catch (err) {
       toast.error("Failed to archive habit");
-      console.error("[habits] archive failed", err);
-      throw err;
+      throw logError("[habits] archive failed", err, "Failed to archive habit");
     }
   },
 
@@ -91,7 +107,7 @@ export const habitsService = {
       .from("habit_goal_links")
       .select("goal_id")
       .eq("habit_id", habitId);
-    if (error) throw error;
+    if (error) throw logError("[habits] get linked goals failed", error, "Failed to load habit links");
     return (data ?? []).map((r: { goal_id: string }) => r.goal_id);
   },
 
@@ -104,7 +120,7 @@ export const habitsService = {
       .from("habit_goal_links")
       .select("*")
       .in("habit_id", habitIds);
-    if (error) throw error;
+    if (error) throw logError("[habits] list goal links failed", error, "Failed to load habit links");
     return (data ?? []) as HabitGoalLink[];
   },
 
@@ -121,7 +137,7 @@ export const habitsService = {
     const { error } = await supabase
       .from("habit_goal_links")
       .upsert({ habit_id: habitId, goal_id: goalId });
-    if (error) throw error;
+    if (error) throw logError("[habits] link goal failed", error, "Failed to link goal");
   },
 
   unlinkGoal: async (_ctx: ServiceContext, habitId: string, goalId: string): Promise<void> => {
@@ -129,6 +145,6 @@ export const habitsService = {
       .from("habit_goal_links")
       .delete()
       .match({ habit_id: habitId, goal_id: goalId });
-    if (error) throw error;
+    if (error) throw logError("[habits] unlink goal failed", error, "Failed to unlink goal");
   },
 };

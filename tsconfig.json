@@ -18,6 +18,7 @@
         "name": "next"
       }
     ],
+    "types": ["node", "react", "react-dom"],
     "paths": {
       "@/*": ["./*"]
     }
@@ -40,5 +41,5 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", ".worktrees", ".next"]
+  "exclude": ["node_modules", ".next"]
 }

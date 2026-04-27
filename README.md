@@ -36,18 +36,22 @@ npm run test
 npm run build
 ```
 
-## Database Migrations
+## Database Schema Scripts
 
-Atomic Habits feature migrations:
+Canonical SQL lives in:
 
-- `supabase/migrations/003_atomic_habits_foundation.sql`
-- `supabase/migrations/004_atomic_habits_differentiators.sql`
+- `supabase/sql/drop_all_tables.sql`
+- `supabase/sql/init.sql`
+- `supabase/sql/auth_rls.sql`
 
-Suggested validation:
+`supabase/migrations/` is intentionally kept empty and reserved for future incremental schema updates.
+
+Reset/setup flow:
 
 ```bash
-supabase db reset
-supabase db diff --use-migra
+psql "$DATABASE_URL" -f supabase/sql/drop_all_tables.sql
+psql "$DATABASE_URL" -f supabase/sql/init.sql
+psql "$DATABASE_URL" -f supabase/sql/auth_rls.sql
 ```
 
 ## Delivery Docs
