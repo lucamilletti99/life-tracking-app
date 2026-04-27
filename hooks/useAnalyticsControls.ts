@@ -39,6 +39,12 @@ function defaultControls(): AnalyticsControlsState {
   };
 }
 
+function initialControls(): AnalyticsControlsState {
+  if (typeof window === "undefined") return defaultControls();
+
+  return parseStoredControls(window.localStorage.getItem(STORAGE_KEY)) ?? defaultControls();
+}
+
 export function parseStoredControls(raw: string | null): AnalyticsControlsState | null {
   if (!raw) return null;
 
@@ -77,23 +83,12 @@ export function parseStoredControls(raw: string | null): AnalyticsControlsState 
 }
 
 export function useAnalyticsControls() {
-  const [controls, setControls] = useState<AnalyticsControlsState>(() => defaultControls());
-  const [hydrated, setHydrated] = useState(false);
+  const [controls, setControls] = useState<AnalyticsControlsState>(() => initialControls());
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    const restored = parseStoredControls(window.localStorage.getItem(STORAGE_KEY));
-    if (restored) {
-      setControls(restored);
-    }
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(controls));
-  }, [controls, hydrated]);
+  }, [controls]);
 
   const api = useMemo(() => {
     function setPreset(preset: AnalyticsPresetKey) {

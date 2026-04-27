@@ -185,20 +185,16 @@ export default function TodayPage() {
     }
   }
 
-  const snapshot = useMemo(
-    () =>
-      buildTodaySnapshot({
-        habits,
-        todos,
-        goals,
-        logs,
-        habitGoalLinks: links,
-        todoGoalLinks: todoLinks,
-        habitStacks,
-        today,
-      }),
-    [goals, habitStacks, habits, links, logs, today, todoLinks, todos],
-  );
+  const snapshot = buildTodaySnapshot({
+    habits,
+    todos,
+    goals,
+    logs,
+    habitGoalLinks: links,
+    todoGoalLinks: todoLinks,
+    habitStacks,
+    today,
+  });
 
   const loggingHabit = loggingHabitId ? habits.find((habit) => habit.id === loggingHabitId) : undefined;
   if (loading) {

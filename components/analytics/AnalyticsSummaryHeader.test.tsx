@@ -88,8 +88,8 @@ describe("AnalyticsSummaryHeader", () => {
       />,
     );
 
-    expect(html).toContain("+12 vs previous period");
-    expect(html).toContain("-4 vs previous period");
+    expect(html).toContain("+12 pts vs prev. period");
+    expect(html).toContain("-4pp vs prev. period");
     expect(html).toContain('role="progressbar"');
     expect(html).toContain('aria-valuenow="15"');
   });

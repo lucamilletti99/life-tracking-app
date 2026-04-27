@@ -51,7 +51,7 @@ export function clampAnalyticsRange(input: ClampAnalyticsRangeInput): ClampedAna
   const maxDays = input.maxDays ?? 730;
   const ordered = safeOrderedRange(input.startDate, input.endDate);
 
-  let end = parseISO(ordered.endDate);
+  const end = parseISO(ordered.endDate);
   let start = parseISO(ordered.startDate);
   let days = rangeDays(ordered);
 

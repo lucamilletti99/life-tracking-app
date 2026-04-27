@@ -98,15 +98,6 @@ export function buildAnalyticsSnapshot({
     comparisonEnabled: false,
   });
 
-  const progress = buildAnalyticsProgressModel({
-    goals,
-    habits,
-    logs,
-    habitGoalLinks,
-    range,
-    granularity: "daily",
-  });
-
   const dailyLogSeries: DailyLogPoint[] = summary.trendSeries.map((point) => ({
     date: point.bucketStart,
     total: point.numericTotal,

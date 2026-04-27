@@ -6,8 +6,9 @@ import { describe, expect, it } from "vitest";
 const proxySource = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
 
 describe("proxy route protection", () => {
-  it("protects /today via protected-prefix checks", () => {
-    expect(proxySource).toMatch(/PROTECTED_PREFIXES\s*=\s*\[[^\]]*["']\/today["']/s);
+  it("keeps proxy as an explicit pass-through", () => {
+    expect(proxySource).toMatch(/export function proxy\(/);
+    expect(proxySource).toMatch(/return NextResponse\.next\(\)/);
   });
 
   it("protects /today via matcher config", () => {

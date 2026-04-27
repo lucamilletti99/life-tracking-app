@@ -1,4 +1,4 @@
-import { endOfMonth, endOfWeek, min } from "date-fns";
+import { min } from "date-fns";
 
 import { buildGoalTrajectory, calculateGoalProgress } from "@/lib/goal-calculations";
 import { getHabitLogStatusMap } from "@/lib/habit-status";
